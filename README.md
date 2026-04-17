@@ -1,59 +1,85 @@
-# OBS Plugin Template
+# scrcpy-obs
 
-## Introduction
+OBS Studio plugin that adds **Android (scrcpy)** as a native source. Mirror an Android device straight into OBS over ADB — no window capture, no display mirror, no virtual camera driver.
 
-The plugin template is meant to be used as a starting point for OBS Studio plugin development. It includes:
+> **Status:** pre-alpha, plugin scaffolding in progress. A working prototype using scrcpy's stream-sink feature + OBS Media Source is documented at the bottom of this README.
 
-* Boilerplate plugin source code
-* A CMake project file
-* GitHub Actions workflows and repository actions
+## Architecture
 
-## Supported Build Environments
+Plugin spawns a scrcpy subprocess per source instance, reads the MPEG-TS video stream over loopback TCP, decodes via OBS-provided FFmpeg libs, and pushes frames into OBS through `obs_source_output_video()`. Platform-agnostic — works on Windows, Linux, macOS.
 
-| Platform  | Tool   |
-|-----------|--------|
-| Windows   | Visual Studio 17 2022 |
-| macOS     | XCode 16.0 |
-| Windows, macOS  | CMake 3.30.5 |
-| Ubuntu 24.04 | CMake 3.28.3 |
-| Ubuntu 24.04 | `ninja-build` |
-| Ubuntu 24.04 | `pkg-config`
-| Ubuntu 24.04 | `build-essential` |
+Full reasoning in [`DECISION.md`](./DECISION.md). Context map in [`CLAUDE.md`](./CLAUDE.md).
 
-## Quick Start
+```
+Android                     Plugin process (in OBS)
++--------------+           +-------------------------------+
+| scrcpy-server| --ADB---> | scrcpy.exe (subprocess)       |
+| (MediaCodec) |           |   --stream-sink=tcp://...     |
++--------------+           +-------------+-----------------+
+                                         | MPEG-TS loopback
+                                         v
+                           +-------------------------------+
+                           | scrcpy-obs plugin             |
+                           |   demux + decode + output     |
+                           +-------------+-----------------+
+                                         v
+                                      OBS source
+```
 
-An absolute bare-bones [Quick Start Guide](https://github.com/obsproject/obs-plugintemplate/wiki/Quick-Start-Guide) is available in the wiki.
+## Targets
 
-## Documentation
+- **Windows** (x64) — primary, MSVC
+- **Linux** (x64, arm64) — secondary
+- **macOS** (AppleSilicon, x64) — secondary
 
-All documentation can be found in the [Plugin Template Wiki](https://github.com/obsproject/obs-plugintemplate/wiki).
+## Build requirements
 
-Suggested reading to get up and running:
+- Visual Studio 2022 + Desktop C++ workload (Windows)
+- CMake ≥ 3.28
+- OBS Studio 31.1.1+ installed (for runtime testing)
+- Qt 6 (pulled automatically by `buildspec.json` via obs-deps)
+- MSYS2 MINGW64 (Windows only, for building the scrcpy subprocess binary):
+  ```bash
+  pacman -S mingw-w64-x86_64-meson mingw-w64-x86_64-ninja \
+            mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg \
+            mingw-w64-x86_64-libusb mingw-w64-x86_64-gcc
+  ```
+- Android device with USB debugging enabled, `adb` in PATH
 
-* [Getting started](https://github.com/obsproject/obs-plugintemplate/wiki/Getting-Started)
-* [Build system requirements](https://github.com/obsproject/obs-plugintemplate/wiki/Build-System-Requirements)
-* [Build system options](https://github.com/obsproject/obs-plugintemplate/wiki/CMake-Build-System-Options)
+## Repo layout
 
-## GitHub Actions & CI
+```
+scrcpy-obs/
+├── CMakeLists.txt          OBS plugin build
+├── buildspec.json          OBS plugin dependency manifest
+├── src/
+│   └── plugin-main.c       module entry (stub)
+├── data/locale/            i18n strings
+├── cmake/                  CMake helpers (TODO: copy from obs-plugintemplate)
+├── scrcpy/                 git submodule → Genymobile/scrcpy v3.3.4
+├── CLAUDE.md               project context for Claude Code
+├── DECISION.md             architecture decision record
+└── README.md               this file
+```
 
-Default GitHub Actions workflows are available for the following repository actions:
+## Setup
 
-* `push`: Run for commits or tags pushed to `master` or `main` branches.
-* `pr-pull`: Run when a Pull Request has been pushed or synchronized.
-* `dispatch`: Run when triggered by the workflow dispatch in GitHub's user interface.
-* `build-project`: Builds the actual project and is triggered by other workflows.
-* `check-format`: Checks CMake and plugin source code formatting and is triggered by other workflows.
+```bash
+git clone <repo-url>
+cd scrcpy-obs
+git submodule update --init --recursive
+```
 
-The workflows make use of GitHub repository actions (contained in `.github/actions`) and build scripts (contained in `.github/scripts`) which are not needed for local development, but might need to be adjusted if additional/different steps are required to build the plugin.
+Build wiring not complete yet. See `DECISION.md` for next steps.
 
-### Retrieving build artifacts
+## Licensing
 
-Successful builds on GitHub Actions will produce build artifacts that can be downloaded for testing. These artifacts are commonly simple archives and will not contain package installers or installation programs.
+- Plugin: **GPL-2.0-or-later** (matching libobs).
+- scrcpy (Apache-2.0) is shipped as a **separate binary**, not linked into the plugin — so the two remain separate works under their own licenses. See `DECISION.md` § Licensing for full reasoning.
 
-### Building a Release
+## See also
 
-To create a release, an appropriately named tag needs to be pushed to the `main`/`master` branch using semantic versioning (e.g., `12.3.4`, `23.4.5-beta2`). A draft release will be created on the associated repository with generated installer packages or installation programs attached as release artifacts.
-
-## Signing and Notarizing on macOS
-
-Basic concepts of codesigning and notarization on macOS are explained in the correspodning [Wiki article](https://github.com/obsproject/obs-plugintemplate/wiki/Codesigning-On-macOS) which has a specific section for the [GitHub Actions setup](https://github.com/obsproject/obs-plugintemplate/wiki/Codesigning-On-macOS#setting-up-code-signing-for-github-actions).
+- [scrcpy](https://github.com/Genymobile/scrcpy) — upstream project
+- [obs-plugintemplate](https://github.com/obsproject/obs-plugintemplate) — template this plugin is based on
+- [DistroAV](https://github.com/DistroAV/DistroAV) — NDI-for-OBS plugin, architectural reference
+- [stream-sink PR #6721](https://github.com/Genymobile/scrcpy/pull/6721) — scrcpy PR used for MPEG-TS output
