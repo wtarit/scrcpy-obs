@@ -2,6 +2,7 @@
 
 Requires: OBS running, WebSocket enabled, 2+ Android devices connected.
 """
+import base64
 import subprocess
 import time
 import pytest
@@ -10,6 +11,22 @@ import obsws_python as obs
 pytestmark = pytest.mark.e2e
 
 SOURCE_NAMES = ["scrcpy-test-device1", "scrcpy-test-device2"]
+
+# PNG of a solid-black 288x512 frame compresses to ~1–3 KB.
+# Real device content is reliably above this threshold.
+_BLACK_FRAME_THRESHOLD = 5000  # bytes
+
+
+def _assert_not_black(obs_client, source_name):
+    """Fail if source screenshot looks like a black/empty frame."""
+    shot = obs_client.get_source_screenshot(source_name, "png", 288, 512, 100)
+    raw = shot.image_data
+    if "," in raw:
+        raw = raw.split(",", 1)[1]
+    size = len(base64.b64decode(raw))
+    assert size > _BLACK_FRAME_THRESHOLD, (
+        f"{source_name}: screenshot PNG {size}B ≤ {_BLACK_FRAME_THRESHOLD}B — likely black frame"
+    )
 
 
 def _get_adb_devices():
@@ -69,6 +86,9 @@ def test_two_sources_simultaneously(obs_client):
 
         assert not failures, "sources not active:\n" + "\n".join(failures)
 
+        for name in created:
+            _assert_not_black(obs_client, name)
+
     finally:
         for name in created:
             try:
@@ -104,6 +124,7 @@ def test_serial_change(obs_client):
 
         active = obs_client.get_source_active(name)
         assert active.video_active, f"device1 ({serial1}) never went active"
+        _assert_not_black(obs_client, name)
 
         # Switch to second device — triggers src_update in the plugin
         obs_client.set_input_settings(name, {"serial": serial2}, True)
@@ -113,6 +134,7 @@ def test_serial_change(obs_client):
         assert active.video_active, (
             f"device2 ({serial2}) never went active after serial change"
         )
+        _assert_not_black(obs_client, name)
 
     finally:
         try:
