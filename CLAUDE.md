@@ -77,6 +77,8 @@ Four options considered: (A) vendor scrcpy source + link, (B) spawn scrcpy subpr
 
 ## Next implementation steps (resume here)
 
+**👉 Resume point (2026-04-17):** active branch is `dev/rawstream` (commits `0960cba` docs + `eb525e8` scaffold). `dev/prototype` preserved as stream-sink-era reference. `stash@{0}` holds abandoned demuxer debugging. Immediate next action = **step 1 below** (scrcpy fork patch). `src/scrcpy-reader.c` is a stub; no decode path yet. Plugin won't produce video frames until the fork patch lands *and* step 3 is done.
+
 Prototype (steps 1–6) delivered the process-spawn + source-type skeleton but committed to the stream-sink path. We're resetting that path (see DECISION.md § *Revision 2026-04-17*). Upcoming work:
 
 1. **Author scrcpy fork patch** on `rawstream/v3.3.4`.
