@@ -186,6 +186,3 @@ git commit -m "deps: bump scrcpy fork to vX.Y.Z-rawstream.1"
 
 Unlikely but ideal: upstream gains an official raw-packet-out flag. Drop the `rawstream/*` branch, point submodule at the stock upstream tag, simplify CI.
 
-## Historical note
-
-Before this repo was restructured as an OBS plugin, it shipped shell scripts that ran a scrcpy binary with PR #6721 applied and exposed an MPEG-TS TCP stream for OBS's built-in Media Source (Option C). Those scripts were deleted on 2026-04-16 when Option B was picked — the plugin subsumes the same data path internally.
