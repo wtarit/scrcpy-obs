@@ -6,7 +6,11 @@
 !/build-aux
 !/cmake
 !/data
+!/scripts
 !/src
+
+# Bundled runtime binaries built from submodules — not source-controlled
+/data/bin/
 !.clang-format
 !.gersemirc
 !.gitignore
