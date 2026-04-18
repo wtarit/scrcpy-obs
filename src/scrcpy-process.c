@@ -50,20 +50,15 @@ static wchar_t *utf8_to_wide(const char *utf8)
 	return w;
 }
 
-static void build_env_block(struct dstr *env_block,
-			    const char *server_path,
-			    const char *adb_dir)
+static void build_env_block(struct dstr *env_block, const char *server_path)
 {
 	wchar_t *existing = GetEnvironmentStringsW();
 	for (wchar_t *p = existing; *p; p += wcslen(p) + 1) {
 		int u8_len = WideCharToMultiByte(CP_UTF8, 0, p, -1, NULL, 0, NULL, NULL);
 		char *u8 = bmalloc((size_t)u8_len);
 		WideCharToMultiByte(CP_UTF8, 0, p, -1, u8, u8_len, NULL, NULL);
-		bool skip = false;
-		if (server_path && _strnicmp(u8, "SCRCPY_SERVER_PATH=", 19) == 0)
-			skip = true;
-		if (adb_dir && _strnicmp(u8, "PATH=", 5) == 0)
-			skip = true;
+		bool skip = server_path &&
+			    _strnicmp(u8, "SCRCPY_SERVER_PATH=", 19) == 0;
 		if (!skip)
 			dstr_ncat(env_block, u8, (size_t)u8_len);
 		bfree(u8);
@@ -76,16 +71,6 @@ static void build_env_block(struct dstr *env_block,
 		dstr_ncat(env_block, e.array, e.len + 1);
 		dstr_free(&e);
 	}
-	if (adb_dir) {
-		const char *cur_path = getenv("PATH");
-		struct dstr e = {0};
-		if (cur_path && *cur_path)
-			dstr_printf(&e, "PATH=%s;%s", adb_dir, cur_path);
-		else
-			dstr_printf(&e, "PATH=%s", adb_dir);
-		dstr_ncat(env_block, e.array, e.len + 1);
-		dstr_free(&e);
-	}
 	dstr_cat_ch(env_block, '\0');
 }
 
@@ -93,7 +78,6 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
 		       const char *exe_path,
 		       const char *const *argv,
 		       const char *server_path,
-		       const char *adb_dir,
 		       const char *log_path)
 {
 	memset(proc, 0, sizeof(*proc));
@@ -106,7 +90,7 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
 	}
 
 	struct dstr env_block_utf8 = {0};
-	build_env_block(&env_block_utf8, server_path, adb_dir);
+	build_env_block(&env_block_utf8, server_path);
 
 	int wenv_len = MultiByteToWideChar(CP_UTF8, 0, env_block_utf8.array,
 					   (int)env_block_utf8.len, NULL, 0);
@@ -243,7 +227,6 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
 		       const char *exe_path,
 		       const char *const *argv,
 		       const char *server_path,
-		       const char *adb_dir,
 		       const char *log_path)
 {
 	memset(proc, 0, sizeof(*proc));
@@ -261,16 +244,6 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
 
 	if (server_path)
 		setenv("SCRCPY_SERVER_PATH", server_path, 1);
-	if (adb_dir) {
-		const char *cur = getenv("PATH");
-		struct dstr p = {0};
-		if (cur && *cur)
-			dstr_printf(&p, "%s:%s", adb_dir, cur);
-		else
-			dstr_copy(&p, adb_dir);
-		setenv("PATH", p.array, 1);
-		dstr_free(&p);
-	}
 
 	pid_t pid = 0;
 	int rc = posix_spawn(&pid, exe_path, NULL, NULL, spawn_argv, environ);

@@ -21,7 +21,7 @@ Full reasoning for Option B + packet-tee approach: `DECISION.md`.
 - `src/scrcpy-reader.c` — TCP reader, packet merger, avcodec decode, frame emission
 - `data/locale/en-US.ini` — i18n strings
 - `data/bin/` — bundled scrcpy.exe + scrcpy-server + DLLs (gitignored, populated by CI/local install)
-- `scripts/test-rawstream.py` — standalone smoke test: spawns patched scrcpy, parses wire protocol, optional ffplay
+- `tests/` — pytest test suite (uv-managed). `wire/` = raw packet tests, `e2e/` = OBS WebSocket tests.
 - `scrcpy/` — **git submodule**. Fork `https://github.com/wtarit/scrcpy` (origin), Genymobile upstream as secondary remote. Submodule pins tag `vX.Y.Z-rawstream.N`. Do not edit files in place — go through the fork.
 
 ## Licensing
@@ -52,12 +52,27 @@ Full reasoning for Option B + packet-tee approach: `DECISION.md`.
     && ninja -C builddir
   ```
 - OBS plugin install dir on dev machine: `C:\ProgramData\obs-studio\plugins\scrcpy-obs\`. OBS ignores the AppData copy if the ProgramData one exists.
-- Smoke test: `python scripts/test-rawstream.py --serial <device> --max-size 720`.
+- Wire tests (no OBS needed, device + `data/bin/` required):
+  ```bash
+  cd tests && uv run pytest wire/ -v
+  # or: ADB_SERIAL=<serial> uv run pytest wire/ -v
+  ```
+- E2E tests (OBS must be running with WebSocket enabled on port 4455):
+  ```bash
+  cd tests && OBS_PASSWORD=<pw> ADB_SERIAL=<serial> uv run pytest e2e/ -v
+  ```
 
 ## Useful upstream refs
 - OBS plugin template: https://github.com/obsproject/obs-plugintemplate
 - DistroAV (NDI → OBS plugin, architectural reference): https://github.com/DistroAV/DistroAV
 - scrcpy source modules of interest: `app/src/demuxer.c`, `app/src/decoder.c`, `app/src/packet_merger.c`, `app/src/adb/`, `app/src/server.c`
+
+## Testing with OBS WebSocket
+OBS WebSocket (built-in since OBS 28) can be used to automate UI testing without clicking. Enable it under Tools → WebSocket Server Settings. Default port 4455. Use `obs-websocket-py` or raw WebSocket JSON to:
+- Create/remove sources programmatically
+- Read source properties
+- Trigger scene changes
+Useful for verifying multiple simultaneous scrcpy sources without manual UI interaction.
 
 ## Conventions
 - Windows paths: forward slashes in bash, backslashes only in PowerShell.

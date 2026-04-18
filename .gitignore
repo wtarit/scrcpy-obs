@@ -1,19 +1,18 @@
-# Exclude everything
+# Exclude everything at root level, then whitelist
 /*
 
-# Except for default project files
+# Root files/dirs to track
 !/.github
 !/build-aux
 !/cmake
 !/data
 !/scripts
 !/src
-
-# Bundled runtime binaries built from submodules — not source-controlled
-/data/bin/
+!/tests
 !.clang-format
 !.gersemirc
 !.gitignore
+!.gitmodules
 !buildspec.json
 !CMakeLists.txt
 !CMakePresets.json
@@ -21,11 +20,21 @@
 !README.md
 !CLAUDE.md
 !DECISION.md
-!.gitmodules
+!KNOWN_ISSUES.md
 !/scrcpy
 
-# Exclude lock files
-*.lock.json
+# Bundled runtime binaries — not source-controlled
+/data/bin/
+
+# Python artifacts inside tests/
+tests/.venv/
+tests/.pytest_cache/
+tests/__pycache__/
+tests/e2e/__pycache__/
+tests/wire/__pycache__/
+**/__pycache__/
+**/*.pyc
+tests/results.xml
 
 # Exclude macOS legacy resource forks
 .DS_Store

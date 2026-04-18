@@ -2,25 +2,26 @@
 
 OBS Studio plugin that adds **Android (scrcpy)** as a native source. Mirror an Android device straight into OBS over ADB — no window capture, no display mirror, no virtual camera driver.
 
-> **Status:** pre-alpha, plugin scaffolding in progress. A working prototype using scrcpy's stream-sink feature + OBS Media Source is documented at the bottom of this README.
+> **Status:** pre-alpha, active development on `dev/rawstream`.
 
 ## Architecture
 
-Plugin spawns a scrcpy subprocess per source instance, reads the MPEG-TS video stream over loopback TCP, decodes via OBS-provided FFmpeg libs, and pushes frames into OBS through `obs_source_output_video()`. Platform-agnostic — works on Windows, Linux, macOS.
+Plugin spawns a patched scrcpy subprocess per source instance. scrcpy tees the raw H.264 packet stream to a loopback TCP port; the plugin parses packets, feeds NAL units to libavcodec, and pushes decoded frames into OBS through `obs_source_output_video()`.
 
 Full reasoning in [`DECISION.md`](./DECISION.md). Context map in [`CLAUDE.md`](./CLAUDE.md).
 
 ```
 Android                     Plugin process (in OBS)
 +--------------+           +-------------------------------+
-| scrcpy-server| --ADB---> | scrcpy.exe (subprocess)       |
-| (MediaCodec) |           |   --stream-sink=tcp://...     |
+| scrcpy-server| --ADB---> | scrcpy.exe (patched)          |
+| (MediaCodec) |           |   --raw-video-tcp=<port>      |
 +--------------+           +-------------+-----------------+
-                                         | MPEG-TS loopback
+                                         | raw H.264 packets
+                                         | [pts:u64|flags:u8|size:u32|NAL]
                                          v
                            +-------------------------------+
                            | scrcpy-obs plugin             |
-                           |   demux + decode + output     |
+                           |   packet merge + avcodec      |
                            +-------------+-----------------+
                                          v
                                       OBS source
@@ -44,7 +45,7 @@ Android                     Plugin process (in OBS)
             mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg \
             mingw-w64-x86_64-libusb mingw-w64-x86_64-gcc
   ```
-- Android device with USB debugging enabled, `adb` in PATH
+- Android device with USB debugging enabled
 
 ## Repo layout
 
@@ -55,27 +56,100 @@ scrcpy-obs/
 ├── src/
 │   └── plugin-main.c       module entry (stub)
 ├── data/locale/            i18n strings
-├── cmake/                  CMake helpers (TODO: copy from obs-plugintemplate)
-├── scrcpy/                 git submodule → Genymobile/scrcpy v3.3.4
+├── cmake/                  CMake helpers
+├── tests/                  pytest test suite (uv-managed)
+│   ├── pyproject.toml
+│   ├── conftest.py
+│   ├── e2e/                OBS WebSocket end-to-end tests
+│   └── wire/               raw H.264 wire-protocol tests
+├── scrcpy/                 git submodule → wtarit/scrcpy fork
 ├── CLAUDE.md               project context for Claude Code
 ├── DECISION.md             architecture decision record
 └── README.md               this file
 ```
 
-## Setup
+## Build
+
+### 1. Clone
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:wtarit/scrcpy-obs.git
 cd scrcpy-obs
 git submodule update --init --recursive
 ```
 
-Build wiring not complete yet. See `DECISION.md` for next steps.
+### 2. Build the scrcpy subprocess binary (MSYS2 MINGW64 shell)
+
+```bash
+cd scrcpy
+meson setup builddir --buildtype=release -Dcompile_server=false
+ninja -C builddir
+cd ..
+```
+
+Output: `scrcpy/builddir/app/scrcpy.exe` + DLLs. Copy these (plus `scrcpy-server`) into `data/bin/` before building the plugin, or the install step will fail.
+
+### 3. Build the OBS plugin (PowerShell / Developer Command Prompt)
+
+```powershell
+cmake --preset windows-x64
+cmake --build --preset windows-x64
+```
+
+### 4. Install to OBS
+
+```powershell
+cmake --install build_x64 --config RelWithDebInfo --prefix "C:\ProgramData\obs-studio\plugins"
+```
+
+Restart OBS after install. The source appears as **Android (scrcpy)** in the Add Source menu.
 
 ## Licensing
 
 - Plugin: **GPL-2.0-or-later** (matching libobs).
 - scrcpy (Apache-2.0) is shipped as a **separate binary**, not linked into the plugin — so the two remain separate works under their own licenses. See `DECISION.md` § Licensing for full reasoning.
+
+## Testing
+
+Test suite lives in `tests/`, managed by [uv](https://docs.astral.sh/uv/).
+
+```bash
+cd tests
+uv sync          # first time: creates .venv and installs deps
+```
+
+**Wire tests** — validate raw H.264 packet stream from patched scrcpy. Requires device + `data/bin/` populated:
+
+```bash
+# auto-detects ADB device; or set ADB_SERIAL=<serial>
+uv run pytest wire/ -v
+```
+
+**E2E tests** — validate full pipeline through OBS. Requires OBS running with WebSocket enabled (Tools → WebSocket Server Settings, port 4455):
+
+```bash
+OBS_PASSWORD=<your-password> ADB_SERIAL=<serial> uv run pytest e2e/ -v
+```
+
+Environment variables:
+
+| Variable         | Default         | Description                                   |
+| ---------------- | --------------- | --------------------------------------------- |
+| `OBS_HOST`       | `127.0.0.1`     | OBS WebSocket host                            |
+| `OBS_PORT`       | `4455`          | OBS WebSocket port                            |
+| `OBS_PASSWORD`   | _(empty)_       | OBS WebSocket password                        |
+| `ADB_SERIAL`     | `emulator-5554` | ADB device serial                             |
+| `SCRCPY_BIN_DIR` | `data/bin`      | Directory with `scrcpy.exe` + `scrcpy-server` |
+
+## ADB resolution
+
+Both the plugin (device list dropdown) and scrcpy itself resolve `adb` in the same order:
+
+1. `$ADB` environment variable — set to a full path to override
+2. Bundled `adb.exe` in `data/bin/` (ships with the plugin)
+3. `adb` on system `PATH`
+
+Normal users never need to configure anything. Set `$ADB` only if you need a specific ADB version (e.g. enterprise MDM builds).
 
 ## Potential improvements
 
