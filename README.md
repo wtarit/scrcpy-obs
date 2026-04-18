@@ -77,6 +77,10 @@ Build wiring not complete yet. See `DECISION.md` for next steps.
 - Plugin: **GPL-2.0-or-later** (matching libobs).
 - scrcpy (Apache-2.0) is shipped as a **separate binary**, not linked into the plugin — so the two remain separate works under their own licenses. See `DECISION.md` § Licensing for full reasoning.
 
+## Potential improvements
+
+- **CI dep caching** — Windows CI job downloads OBS source, prebuilt obs-deps, and Qt6 on every run (~several GB). Adding `actions/cache` keyed on `buildspec.json` dep versions would skip re-download when deps haven't changed. macOS/Linux already cache compiler output (`.ccache`); Windows has no cache at all.
+
 ## See also
 
 - [scrcpy](https://github.com/Genymobile/scrcpy) — upstream project
