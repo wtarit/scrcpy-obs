@@ -19,9 +19,23 @@ jobs:
     permissions:
       contents: read
 
-  build-project:
-    name: Build Project 🧱
-    uses: ./.github/workflows/build-project.yaml
+  build-windows:
+    name: Build Windows 🪟
+    uses: ./.github/workflows/build-windows.yaml
     secrets: inherit
     permissions:
       contents: read
+
+  # build-macos:
+  #   name: Build macOS 🍏
+  #   uses: ./.github/workflows/build-macos.yaml
+  #   secrets: inherit
+  #   permissions:
+  #     contents: read
+
+  # build-ubuntu:
+  #   name: Build Ubuntu 🐧
+  #   uses: ./.github/workflows/build-ubuntu.yaml
+  #   secrets: inherit
+  #   permissions:
+  #     contents: read

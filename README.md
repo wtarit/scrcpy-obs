@@ -1,59 +1,187 @@
-# OBS Plugin Template
+# scrcpy-obs
 
-## Introduction
+OBS Studio plugin that adds **Android (scrcpy)** as a native source. Mirror an Android device straight into OBS over ADB — no window capture, no display mirror, no virtual camera driver.
 
-The plugin template is meant to be used as a starting point for OBS Studio plugin development. It includes:
+> **Status:** pre-alpha, active development on `dev/rawstream`.
 
-* Boilerplate plugin source code
-* A CMake project file
-* GitHub Actions workflows and repository actions
+## Architecture
 
-## Supported Build Environments
+Plugin spawns a patched scrcpy subprocess per source instance. scrcpy tees the raw H.264 packet stream to a loopback TCP port; the plugin parses packets, feeds NAL units to libavcodec, and pushes decoded frames into OBS through `obs_source_output_video()`.
 
-| Platform  | Tool   |
-|-----------|--------|
-| Windows   | Visual Studio 17 2022 |
-| macOS     | XCode 16.0 |
-| Windows, macOS  | CMake 3.30.5 |
-| Ubuntu 24.04 | CMake 3.28.3 |
-| Ubuntu 24.04 | `ninja-build` |
-| Ubuntu 24.04 | `pkg-config`
-| Ubuntu 24.04 | `build-essential` |
+Full reasoning in [`DECISION.md`](./DECISION.md). Context map in [`AGENTS.md`](./AGENTS.md).
 
-## Quick Start
+```
+Android                     Plugin process (in OBS)
++--------------+           +-------------------------------+
+| scrcpy-server| --ADB---> | scrcpy.exe (patched)          |
+| (MediaCodec) |           |   --raw-video-tcp=<port>      |
++--------------+           +-------------+-----------------+
+                                         | raw H.264 packets
+                                         | [pts:u64|flags:u8|size:u32|NAL]
+                                         v
+                           +-------------------------------+
+                           | scrcpy-obs plugin             |
+                           |   packet merge + avcodec      |
+                           +-------------+-----------------+
+                                         v
+                                      OBS source
+```
 
-An absolute bare-bones [Quick Start Guide](https://github.com/obsproject/obs-plugintemplate/wiki/Quick-Start-Guide) is available in the wiki.
+## Targets
 
-## Documentation
+- **Windows** (x64) — primary, MSVC
+- **Linux** (x64, arm64) — secondary
+- **macOS** (AppleSilicon, x64) — secondary
 
-All documentation can be found in the [Plugin Template Wiki](https://github.com/obsproject/obs-plugintemplate/wiki).
+## Build requirements
 
-Suggested reading to get up and running:
+- Visual Studio 2022 + Desktop C++ workload (Windows)
+- CMake ≥ 3.28
+- OBS Studio 31.1.1+ installed (for runtime testing)
+- Qt 6 (pulled automatically by `buildspec.json` via obs-deps)
+- MSYS2 MINGW64 (Windows only, for building the scrcpy subprocess binary):
+  ```bash
+  pacman -S mingw-w64-x86_64-meson mingw-w64-x86_64-ninja \
+            mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg \
+            mingw-w64-x86_64-libusb mingw-w64-x86_64-gcc
+  ```
+- Android device with USB debugging enabled
 
-* [Getting started](https://github.com/obsproject/obs-plugintemplate/wiki/Getting-Started)
-* [Build system requirements](https://github.com/obsproject/obs-plugintemplate/wiki/Build-System-Requirements)
-* [Build system options](https://github.com/obsproject/obs-plugintemplate/wiki/CMake-Build-System-Options)
+## Repo layout
 
-## GitHub Actions & CI
+```
+scrcpy-obs/
+├── CMakeLists.txt          OBS plugin build
+├── buildspec.json          OBS plugin dependency manifest
+├── src/
+│   └── plugin-main.c       module entry (stub)
+├── data/locale/            i18n strings
+├── cmake/                  CMake helpers
+├── tests/                  pytest test suite (uv-managed)
+│   ├── pyproject.toml
+│   ├── conftest.py
+│   ├── e2e/                OBS WebSocket end-to-end tests
+│   └── wire/               raw H.264 wire-protocol tests
+├── scrcpy/                 git submodule → wtarit/scrcpy fork
+├── AGENTS.md               project context for coding agents
+├── DECISION.md             architecture decision record
+└── README.md               this file
+```
 
-Default GitHub Actions workflows are available for the following repository actions:
+## Build
 
-* `push`: Run for commits or tags pushed to `master` or `main` branches.
-* `pr-pull`: Run when a Pull Request has been pushed or synchronized.
-* `dispatch`: Run when triggered by the workflow dispatch in GitHub's user interface.
-* `build-project`: Builds the actual project and is triggered by other workflows.
-* `check-format`: Checks CMake and plugin source code formatting and is triggered by other workflows.
+### 1. Clone
 
-The workflows make use of GitHub repository actions (contained in `.github/actions`) and build scripts (contained in `.github/scripts`) which are not needed for local development, but might need to be adjusted if additional/different steps are required to build the plugin.
+```bash
+git clone git@github.com:wtarit/scrcpy-obs.git
+cd scrcpy-obs
+git submodule update --init --recursive
+```
 
-### Retrieving build artifacts
+### 2. Build the scrcpy subprocess binary (MSYS2 MINGW64 shell)
 
-Successful builds on GitHub Actions will produce build artifacts that can be downloaded for testing. These artifacts are commonly simple archives and will not contain package installers or installation programs.
+```bash
+cd scrcpy
+meson setup builddir --buildtype=release -Dcompile_server=false
+ninja -C builddir
+cd ..
+```
 
-### Building a Release
+Output: `scrcpy/builddir/app/scrcpy.exe` + DLLs. Copy these (plus `scrcpy-server`) into `data/bin/` before building the plugin, or the install step will fail.
 
-To create a release, an appropriately named tag needs to be pushed to the `main`/`master` branch using semantic versioning (e.g., `12.3.4`, `23.4.5-beta2`). A draft release will be created on the associated repository with generated installer packages or installation programs attached as release artifacts.
+### 3. Build the OBS plugin (PowerShell / Developer Command Prompt)
 
-## Signing and Notarizing on macOS
+```powershell
+cmake --preset windows-x64
+cmake --build --preset windows-x64
+```
 
-Basic concepts of codesigning and notarization on macOS are explained in the correspodning [Wiki article](https://github.com/obsproject/obs-plugintemplate/wiki/Codesigning-On-macOS) which has a specific section for the [GitHub Actions setup](https://github.com/obsproject/obs-plugintemplate/wiki/Codesigning-On-macOS#setting-up-code-signing-for-github-actions).
+### 4. Install to OBS
+
+```powershell
+cmake --install build_x64 --config RelWithDebInfo
+```
+
+Restart OBS after install. The source appears as **Android (scrcpy)** in the Add Source menu.
+
+## Formatting
+
+- **clang-format** for C sources (`src/*.c`, `src/*.h`)
+- **gersemi** for CMake (`CMakeLists.txt`)
+
+### clang-format (Windows)
+
+Install via winget
+
+```powershell
+winget install -e --id LLVM.ClangFormat
+```
+
+### gersemi
+
+Run with `uvx`
+
+### Format the codebase
+
+```powershell
+Get-ChildItem src -Recurse -Include *.c,*.h | ForEach-Object { clang-format -i $_.FullName }
+uvx gersemi@0.21.0 -i CMakeLists.txt
+```
+
+## Licensing
+
+- Plugin: **GPL-2.0-or-later** (matching libobs).
+- scrcpy (Apache-2.0) is shipped as a **separate binary**, not linked into the plugin — so the two remain separate works under their own licenses. See `DECISION.md` § Licensing for full reasoning.
+
+## Testing
+
+Test suite lives in `tests/`, managed by [uv](https://docs.astral.sh/uv/).
+
+```bash
+cd tests
+uv sync          # first time: creates .venv and installs deps
+```
+
+**Wire tests** — validate raw H.264 packet stream from patched scrcpy. Requires device + `data/bin/` populated:
+
+```bash
+# auto-detects ADB device; or set ADB_SERIAL=<serial>
+uv run pytest wire/ -v
+```
+
+**E2E tests** — validate full pipeline through OBS. Requires OBS running with WebSocket enabled (Tools → WebSocket Server Settings, port 4455):
+
+```bash
+OBS_PASSWORD=<your-password> ADB_SERIAL=<serial> uv run pytest e2e/ -v
+```
+
+Environment variables:
+
+| Variable         | Default         | Description                                   |
+| ---------------- | --------------- | --------------------------------------------- |
+| `OBS_HOST`       | `127.0.0.1`     | OBS WebSocket host                            |
+| `OBS_PORT`       | `4455`          | OBS WebSocket port                            |
+| `OBS_PASSWORD`   | _(empty)_       | OBS WebSocket password                        |
+| `ADB_SERIAL`     | `emulator-5554` | ADB device serial                             |
+| `SCRCPY_BIN_DIR` | `data/bin`      | Directory with `scrcpy.exe` + `scrcpy-server` |
+
+## ADB resolution
+
+Both the plugin (device list dropdown) and scrcpy itself resolve `adb` in the same order:
+
+1. `$ADB` environment variable — set to a full path to override
+2. Bundled `adb.exe` in `data/bin/` (ships with the plugin)
+3. `adb` on system `PATH`
+
+Normal users never need to configure anything. Set `$ADB` only if you need a specific ADB version (e.g. enterprise MDM builds).
+
+## Potential improvements
+
+- **CI dep caching** — Windows CI job downloads OBS source, prebuilt obs-deps, and Qt6 on every run (~several GB). Adding `actions/cache` keyed on `buildspec.json` dep versions would skip re-download when deps haven't changed. macOS/Linux already cache compiler output (`.ccache`); Windows has no cache at all.
+
+## See also
+
+- [scrcpy](https://github.com/Genymobile/scrcpy) — upstream project
+- [obs-plugintemplate](https://github.com/obsproject/obs-plugintemplate) — template this plugin is based on
+- [DistroAV](https://github.com/DistroAV/DistroAV) — NDI-for-OBS plugin, architectural reference
+- [stream-sink PR #6721](https://github.com/Genymobile/scrcpy/pull/6721) — scrcpy PR used for MPEG-TS output

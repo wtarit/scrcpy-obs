@@ -1,0 +1,55 @@
+name: E2E Tests
+
+# Disabled: no self-hosted runner configured yet.
+# Enable by adding push/pull_request triggers and tagging a runner with [e2e].
+on:
+  workflow_dispatch:
+    inputs:
+      adb_serial:
+        description: "ADB device serial (leave blank to auto-detect)"
+        required: false
+        default: ""
+
+jobs:
+  e2e:
+    name: E2E (OBS + Android device)
+    # Requires a self-hosted Windows runner with:
+    #   - OBS Studio installed at default path
+    #   - Android device/emulator connected via ADB
+    #   - data/bin/ populated with patched scrcpy build
+    #   - OBS WebSocket password stored in runner's OBS profile
+    runs-on: [self-hosted, Windows, e2e]
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: uv sync
+
+      - name: Run wire tests
+        working-directory: tests
+        env:
+          ADB_SERIAL: ${{ inputs.adb_serial }}
+        run: uv run pytest wire/ -v --junit-xml=wire-results.xml
+
+      - name: Run e2e tests
+        working-directory: tests
+        env:
+          OBS_PASSWORD: ${{ secrets.OBS_WS_PASSWORD }}
+          ADB_SERIAL: ${{ inputs.adb_serial }}
+        run: uv run python run_e2e.py --junit-xml=e2e-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: tests/*-results.xml
