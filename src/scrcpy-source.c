@@ -280,6 +280,17 @@ static bool refresh_devices_clicked(obs_properties_t *props, obs_property_t *p, 
 	return true;
 }
 
+static bool video_source_modified(obs_properties_t *props, obs_property_t *p, obs_data_t *settings)
+{
+	UNUSED_PARAMETER(p);
+	const char *source = obs_data_get_string(settings, "video_source");
+	bool is_camera = source && strcmp(source, "camera") == 0;
+	obs_property_t *camera_id = obs_properties_get(props, "camera_id");
+	if (camera_id)
+		obs_property_set_visible(camera_id, is_camera);
+	return true;
+}
+
 static obs_properties_t *src_get_properties(void *data)
 {
 	struct scrcpy_src *ctx = data;
@@ -295,8 +306,10 @@ static obs_properties_t *src_get_properties(void *data)
 							   OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	obs_property_list_add_string(src_list, "Display", "display");
 	obs_property_list_add_string(src_list, "Camera", "camera");
+	obs_property_set_modified_callback(src_list, video_source_modified);
 
-	obs_properties_add_int(props, "camera_id", obs_module_text("CameraId"), 0, 9, 1);
+	obs_property_t *camera_id = obs_properties_add_int(props, "camera_id", obs_module_text("CameraId"), 0, 9, 1);
+	obs_property_set_visible(camera_id, ctx->video_source && strcmp(ctx->video_source, "camera") == 0);
 
 	obs_properties_add_int(props, "max_size", obs_module_text("MaxSize"), 0, 4096, 16);
 
