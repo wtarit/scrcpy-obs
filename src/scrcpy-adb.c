@@ -91,8 +91,7 @@ static char *adb_devices_l(const char *adb_exe)
 	si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
 
 	PROCESS_INFORMATION pi = {0};
-	BOOL ok = CreateProcessW(NULL, wcmd, NULL, NULL, TRUE,
-				 CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+	BOOL ok = CreateProcessW(NULL, wcmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
 	bfree(wcmd);
 	CloseHandle(wr);
 
@@ -166,8 +165,7 @@ void fill_device_list(obs_property_t *list)
 				const char *rest = tok_end;
 				while (rest < eol && (*rest == ' ' || *rest == '\t'))
 					rest++;
-				if (strncmp(rest, "offline", 7) == 0 ||
-				    strncmp(rest, "unauthorized", 12) == 0 ||
+				if (strncmp(rest, "offline", 7) == 0 || strncmp(rest, "unauthorized", 12) == 0 ||
 				    strncmp(rest, "no permissions", 14) == 0) {
 					p = eol;
 					while (*p == '\n' || *p == '\r')
@@ -181,8 +179,7 @@ void fill_device_list(obs_property_t *list)
 				if (m && m < eol) {
 					m += 6;
 					size_t mlen = 0;
-					while (m + mlen < eol && m[mlen] &&
-					       m[mlen] != ' ' && m[mlen] != '\t')
+					while (m + mlen < eol && m[mlen] && m[mlen] != ' ' && m[mlen] != '\t')
 						mlen++;
 					if (mlen > 0 && mlen < sizeof(model)) {
 						memcpy(model, m, mlen);
@@ -230,18 +227,15 @@ char *first_adb_serial(void)
 		size_t line_len = (size_t)(eol - p);
 		if (line_len > 0 && strncmp(p, "List of", 7) != 0) {
 			const char *tok_end = p;
-			while (tok_end < eol && *tok_end != ' ' &&
-			       *tok_end != '\t')
+			while (tok_end < eol && *tok_end != ' ' && *tok_end != '\t')
 				tok_end++;
 			size_t slen = (size_t)(tok_end - p);
 
 			if (slen > 0 && slen < 128) {
 				const char *rest = tok_end;
-				while (rest < eol &&
-				       (*rest == ' ' || *rest == '\t'))
+				while (rest < eol && (*rest == ' ' || *rest == '\t'))
 					rest++;
-				if (strncmp(rest, "offline", 7) != 0 &&
-				    strncmp(rest, "unauthorized", 12) != 0 &&
+				if (strncmp(rest, "offline", 7) != 0 && strncmp(rest, "unauthorized", 12) != 0 &&
 				    strncmp(rest, "no permissions", 14) != 0) {
 					char serial[128];
 					memcpy(serial, p, slen);

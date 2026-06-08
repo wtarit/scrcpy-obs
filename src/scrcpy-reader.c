@@ -38,12 +38,20 @@ typedef int socklen_t;
 typedef SOCKET sock_t;
 #define INVALID_SOCK INVALID_SOCKET
 #define SOCK_ERR (-1)
-static void close_sock(sock_t s) { if (s != INVALID_SOCK) closesocket(s); }
+static void close_sock(sock_t s)
+{
+	if (s != INVALID_SOCK)
+		closesocket(s);
+}
 #else
 typedef int sock_t;
 #define INVALID_SOCK (-1)
 #define SOCK_ERR (-1)
-static void close_sock(sock_t s) { if (s >= 0) close(s); }
+static void close_sock(sock_t s)
+{
+	if (s >= 0)
+		close(s);
+}
 #endif
 
 struct scrcpy_reader {
@@ -68,8 +76,7 @@ struct scrcpy_reader {
 
 static uint32_t rd_u32be(const uint8_t *p)
 {
-	return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) |
-	       ((uint32_t)p[2] << 8) | (uint32_t)p[3];
+	return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | (uint32_t)p[3];
 }
 
 static uint64_t rd_u64be(const uint8_t *p)
@@ -145,8 +152,7 @@ static sock_t connect_with_retry(uint16_t port, volatile bool *stop)
 
 		if (connect(s, (struct sockaddr *)&addr, sizeof(addr)) == 0) {
 			int one = 1;
-			setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
-				   (const char *)&one, sizeof(one));
+			setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (const char *)&one, sizeof(one));
 			return s;
 		}
 		close_sock(s);
@@ -155,19 +161,16 @@ static sock_t connect_with_retry(uint16_t port, volatile bool *stop)
 	return INVALID_SOCK;
 }
 
-static bool open_decoder(struct scrcpy_reader *r, uint32_t codec_id,
-			 uint32_t width, uint32_t height)
+static bool open_decoder(struct scrcpy_reader *r, uint32_t codec_id, uint32_t width, uint32_t height)
 {
 	enum AVCodecID av_id = scrcpy_codec_to_avcodec(codec_id);
 	if (av_id == AV_CODEC_ID_NONE) {
-		obs_log(LOG_ERROR, "scrcpy-reader: unsupported codec 0x%08x",
-			codec_id);
+		obs_log(LOG_ERROR, "scrcpy-reader: unsupported codec 0x%08x", codec_id);
 		return false;
 	}
 	const AVCodec *codec = avcodec_find_decoder(av_id);
 	if (!codec) {
-		obs_log(LOG_ERROR, "scrcpy-reader: no decoder for codec id %d",
-			(int)av_id);
+		obs_log(LOG_ERROR, "scrcpy-reader: no decoder for codec id %d", (int)av_id);
 		return false;
 	}
 	r->codec_ctx = avcodec_alloc_context3(codec);
@@ -198,8 +201,7 @@ static void emit_frame(struct scrcpy_reader *r, AVFrame *f)
 {
 	enum video_format fmt = av_to_obs_format(f->format);
 	if (fmt == VIDEO_FORMAT_NONE) {
-		obs_log(LOG_WARNING,
-			"scrcpy-reader: unsupported pix fmt %d", f->format);
+		obs_log(LOG_WARNING, "scrcpy-reader: unsupported pix fmt %d", f->format);
 		return;
 	}
 
@@ -219,11 +221,8 @@ static void emit_frame(struct scrcpy_reader *r, AVFrame *f)
 	else
 		obs_frame.timestamp = (uint64_t)f->pts * 1000ULL;
 
-	video_format_get_parameters_for_format(VIDEO_CS_DEFAULT,
-					       VIDEO_RANGE_DEFAULT, fmt,
-					       obs_frame.color_matrix,
-					       obs_frame.color_range_min,
-					       obs_frame.color_range_max);
+	video_format_get_parameters_for_format(VIDEO_CS_DEFAULT, VIDEO_RANGE_DEFAULT, fmt, obs_frame.color_matrix,
+					       obs_frame.color_range_min, obs_frame.color_range_max);
 
 	obs_source_output_video(r->source, &obs_frame);
 }
@@ -236,14 +235,10 @@ static void *reader_thread(void *data)
 
 	r->sock = connect_with_retry(r->port, &r->stop);
 	if (r->sock == INVALID_SOCK) {
-		obs_log(LOG_ERROR,
-			"scrcpy-reader: could not connect to 127.0.0.1:%u",
-			(unsigned)r->port);
+		obs_log(LOG_ERROR, "scrcpy-reader: could not connect to 127.0.0.1:%u", (unsigned)r->port);
 		return NULL;
 	}
-	obs_log(LOG_INFO,
-		"scrcpy-reader: connected to 127.0.0.1:%u, awaiting prelude",
-		(unsigned)r->port);
+	obs_log(LOG_INFO, "scrcpy-reader: connected to 127.0.0.1:%u, awaiting prelude", (unsigned)r->port);
 
 	uint8_t prelude[12];
 	if (!recv_all(r->sock, prelude, sizeof(prelude), &r->stop)) {
@@ -254,9 +249,7 @@ static void *reader_thread(void *data)
 	uint32_t codec_id = rd_u32be(prelude);
 	uint32_t width = rd_u32be(prelude + 4);
 	uint32_t height = rd_u32be(prelude + 8);
-	obs_log(LOG_INFO,
-		"scrcpy-reader: prelude codec=0x%08x %ux%u",
-		codec_id, width, height);
+	obs_log(LOG_INFO, "scrcpy-reader: prelude codec=0x%08x %ux%u", codec_id, width, height);
 
 	if (!open_decoder(r, codec_id, width, height))
 		goto done;
@@ -315,22 +308,18 @@ static void *reader_thread(void *data)
 		if (send_ret < 0 && send_ret != AVERROR(EAGAIN)) {
 			char errbuf[128];
 			av_strerror(send_ret, errbuf, sizeof(errbuf));
-			obs_log(LOG_WARNING,
-				"scrcpy-reader: send_packet: %s", errbuf);
+			obs_log(LOG_WARNING, "scrcpy-reader: send_packet: %s", errbuf);
 			continue;
 		}
 
 		for (;;) {
-			int rcv =
-				avcodec_receive_frame(r->codec_ctx, r->frame);
+			int rcv = avcodec_receive_frame(r->codec_ctx, r->frame);
 			if (rcv == AVERROR(EAGAIN) || rcv == AVERROR_EOF)
 				break;
 			if (rcv < 0) {
 				char errbuf[128];
 				av_strerror(rcv, errbuf, sizeof(errbuf));
-				obs_log(LOG_WARNING,
-					"scrcpy-reader: receive_frame: %s",
-					errbuf);
+				obs_log(LOG_WARNING, "scrcpy-reader: receive_frame: %s", errbuf);
 				break;
 			}
 			emit_frame(r, r->frame);

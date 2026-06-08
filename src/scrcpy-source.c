@@ -103,9 +103,8 @@ static void start_scrcpy(struct scrcpy_src *ctx, obs_data_t *settings)
 
 	char *bin_dir = get_bin_dir();
 	if (!bin_dir) {
-		obs_log(LOG_ERROR,
-			"scrcpy-source: cannot locate scrcpy binary dir "
-			"(set SCRCPY_OBS_BIN_DIR)");
+		obs_log(LOG_ERROR, "scrcpy-source: cannot locate scrcpy binary dir "
+				   "(set SCRCPY_OBS_BIN_DIR)");
 		return;
 	}
 
@@ -119,33 +118,27 @@ static void start_scrcpy(struct scrcpy_src *ctx, obs_data_t *settings)
 	}
 
 	char bitrate_arg[64];
-	snprintf(bitrate_arg, sizeof(bitrate_arg), "--video-bit-rate=%dK",
-		 ctx->bitrate_kbps);
+	snprintf(bitrate_arg, sizeof(bitrate_arg), "--video-bit-rate=%dK", ctx->bitrate_kbps);
 
 	char max_size_arg[64] = {0};
 	if (ctx->max_size > 0)
-		snprintf(max_size_arg, sizeof(max_size_arg),
-			 "--max-size=%d", ctx->max_size);
+		snprintf(max_size_arg, sizeof(max_size_arg), "--max-size=%d", ctx->max_size);
 
 	char codec_arg[64] = {0};
 	if (ctx->codec && *ctx->codec)
-		snprintf(codec_arg, sizeof(codec_arg),
-			 "--video-codec=%s", ctx->codec);
+		snprintf(codec_arg, sizeof(codec_arg), "--video-codec=%s", ctx->codec);
 
 	char source_arg[64] = {0};
 	if (ctx->video_source && *ctx->video_source)
-		snprintf(source_arg, sizeof(source_arg),
-			 "--video-source=%s", ctx->video_source);
+		snprintf(source_arg, sizeof(source_arg), "--video-source=%s", ctx->video_source);
 
 	char camera_arg[64] = {0};
 	if (ctx->video_source && strcmp(ctx->video_source, "camera") == 0)
-		snprintf(camera_arg, sizeof(camera_arg),
-			 "--camera-id=%d", ctx->camera_id);
+		snprintf(camera_arg, sizeof(camera_arg), "--camera-id=%d", ctx->camera_id);
 
 	char serial_arg[128] = {0};
 	if (ctx->serial && *ctx->serial)
-		snprintf(serial_arg, sizeof(serial_arg), "--serial=%s",
-			 ctx->serial);
+		snprintf(serial_arg, sizeof(serial_arg), "--serial=%s", ctx->serial);
 
 	const char *argv[32];
 	size_t n = 0;
@@ -182,11 +175,10 @@ static void start_scrcpy(struct scrcpy_src *ctx, obs_data_t *settings)
 		log_path = lp.array;
 	}
 
-	obs_log(LOG_INFO, "scrcpy-source: spawning %s (port=%u, log=%s)",
-		exe_path, (unsigned)port, log_path ? log_path : "(none)");
+	obs_log(LOG_INFO, "scrcpy-source: spawning %s (port=%u, log=%s)", exe_path, (unsigned)port,
+		log_path ? log_path : "(none)");
 
-	if (scrcpy_proc_spawn(&ctx->proc, exe_path, argv, server_path,
-			      log_path)) {
+	if (scrcpy_proc_spawn(&ctx->proc, exe_path, argv, server_path, log_path)) {
 		ctx->proc_alive = true;
 	} else {
 		obs_log(LOG_ERROR, "scrcpy-source: spawn failed");
@@ -277,8 +269,7 @@ static void src_get_defaults(obs_data_t *settings)
 	obs_data_set_default_string(settings, "codec", "h264");
 }
 
-static bool refresh_devices_clicked(obs_properties_t *props,
-				    obs_property_t *p, void *data)
+static bool refresh_devices_clicked(obs_properties_t *props, obs_property_t *p, void *data)
 {
 	UNUSED_PARAMETER(p);
 	UNUSED_PARAMETER(data);
@@ -294,33 +285,25 @@ static obs_properties_t *src_get_properties(void *data)
 	struct scrcpy_src *ctx = data;
 	obs_properties_t *props = obs_properties_create();
 
-	obs_property_t *dev_list = obs_properties_add_list(
-		props, "serial", obs_module_text("Device"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	obs_property_t *dev_list = obs_properties_add_list(props, "serial", obs_module_text("Device"),
+							   OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	fill_device_list(dev_list);
 
-	obs_properties_add_button(props, "refresh_devices",
-				  obs_module_text("RefreshDevices"),
-				  refresh_devices_clicked);
+	obs_properties_add_button(props, "refresh_devices", obs_module_text("RefreshDevices"), refresh_devices_clicked);
 
-	obs_property_t *src_list = obs_properties_add_list(
-		props, "video_source", obs_module_text("VideoSource"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	obs_property_t *src_list = obs_properties_add_list(props, "video_source", obs_module_text("VideoSource"),
+							   OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	obs_property_list_add_string(src_list, "Display", "display");
 	obs_property_list_add_string(src_list, "Camera", "camera");
 
-	obs_properties_add_int(props, "camera_id",
-			       obs_module_text("CameraId"), 0, 9, 1);
+	obs_properties_add_int(props, "camera_id", obs_module_text("CameraId"), 0, 9, 1);
 
-	obs_properties_add_int(props, "max_size",
-			       obs_module_text("MaxSize"), 0, 4096, 16);
+	obs_properties_add_int(props, "max_size", obs_module_text("MaxSize"), 0, 4096, 16);
 
-	obs_properties_add_int(props, "bitrate_kbps",
-			       obs_module_text("BitrateKbps"), 500, 50000, 500);
+	obs_properties_add_int(props, "bitrate_kbps", obs_module_text("BitrateKbps"), 500, 50000, 500);
 
-	obs_property_t *codec_list = obs_properties_add_list(
-		props, "codec", obs_module_text("Codec"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	obs_property_t *codec_list = obs_properties_add_list(props, "codec", obs_module_text("Codec"),
+							     OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	obs_property_list_add_string(codec_list, "H.264", "h264");
 	obs_property_list_add_string(codec_list, "H.265", "h265");
 	obs_property_list_add_string(codec_list, "AV1", "av1");

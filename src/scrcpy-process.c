@@ -57,8 +57,7 @@ static void build_env_block(struct dstr *env_block, const char *server_path)
 		int u8_len = WideCharToMultiByte(CP_UTF8, 0, p, -1, NULL, 0, NULL, NULL);
 		char *u8 = bmalloc((size_t)u8_len);
 		WideCharToMultiByte(CP_UTF8, 0, p, -1, u8, u8_len, NULL, NULL);
-		bool skip = server_path &&
-			    _strnicmp(u8, "SCRCPY_SERVER_PATH=", 19) == 0;
+		bool skip = server_path && _strnicmp(u8, "SCRCPY_SERVER_PATH=", 19) == 0;
 		if (!skip)
 			dstr_ncat(env_block, u8, (size_t)u8_len);
 		bfree(u8);
@@ -74,10 +73,7 @@ static void build_env_block(struct dstr *env_block, const char *server_path)
 	dstr_cat_ch(env_block, '\0');
 }
 
-bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
-		       const char *exe_path,
-		       const char *const *argv,
-		       const char *server_path,
+bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *const *argv, const char *server_path,
 		       const char *log_path)
 {
 	memset(proc, 0, sizeof(*proc));
@@ -92,11 +88,9 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
 	struct dstr env_block_utf8 = {0};
 	build_env_block(&env_block_utf8, server_path);
 
-	int wenv_len = MultiByteToWideChar(CP_UTF8, 0, env_block_utf8.array,
-					   (int)env_block_utf8.len, NULL, 0);
+	int wenv_len = MultiByteToWideChar(CP_UTF8, 0, env_block_utf8.array, (int)env_block_utf8.len, NULL, 0);
 	wchar_t *wenv = bmalloc((size_t)(wenv_len + 1) * sizeof(wchar_t));
-	MultiByteToWideChar(CP_UTF8, 0, env_block_utf8.array,
-			    (int)env_block_utf8.len, wenv, wenv_len);
+	MultiByteToWideChar(CP_UTF8, 0, env_block_utf8.array, (int)env_block_utf8.len, wenv, wenv_len);
 	wenv[wenv_len] = 0;
 
 	wchar_t *wexe = utf8_to_wide(exe_path);
@@ -105,10 +99,8 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
 	HANDLE job = CreateJobObjectW(NULL, NULL);
 	if (job) {
 		JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {0};
-		info.BasicLimitInformation.LimitFlags =
-			JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-		SetInformationJobObject(job, JobObjectExtendedLimitInformation,
-					&info, sizeof(info));
+		info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+		SetInformationJobObject(job, JobObjectExtendedLimitInformation, &info, sizeof(info));
 	}
 
 	HANDLE log_h = INVALID_HANDLE_VALUE;
@@ -117,14 +109,11 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
 		sa.nLength = sizeof(sa);
 		sa.bInheritHandle = TRUE;
 		wchar_t *wlog = utf8_to_wide(log_path);
-		log_h = CreateFileW(wlog, FILE_APPEND_DATA, FILE_SHARE_READ |
-				    FILE_SHARE_WRITE, &sa, CREATE_ALWAYS,
+		log_h = CreateFileW(wlog, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, CREATE_ALWAYS,
 				    FILE_ATTRIBUTE_NORMAL, NULL);
 		bfree(wlog);
 		if (log_h == INVALID_HANDLE_VALUE) {
-			obs_log(LOG_WARNING,
-				"scrcpy-process: cannot open log %s (err=%lu)",
-				log_path, GetLastError());
+			obs_log(LOG_WARNING, "scrcpy-process: cannot open log %s (err=%lu)", log_path, GetLastError());
 		}
 	}
 
@@ -141,11 +130,9 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
 	}
 
 	PROCESS_INFORMATION pi = {0};
-	DWORD flags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW |
-		      CREATE_SUSPENDED;
+	DWORD flags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW | CREATE_SUSPENDED;
 
-	BOOL ok = CreateProcessW(wexe, wcmd, NULL, NULL, TRUE, flags,
-				 wenv, NULL, &si, &pi);
+	BOOL ok = CreateProcessW(wexe, wcmd, NULL, NULL, TRUE, flags, wenv, NULL, &si, &pi);
 
 	bfree(wexe);
 	bfree(wcmd);
@@ -164,9 +151,7 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
 
 	if (job) {
 		if (!AssignProcessToJobObject(job, pi.hProcess)) {
-			obs_log(LOG_WARNING,
-				"AssignProcessToJobObject failed: %lu",
-				GetLastError());
+			obs_log(LOG_WARNING, "AssignProcessToJobObject failed: %lu", GetLastError());
 		}
 	}
 
@@ -223,10 +208,7 @@ void scrcpy_proc_close(scrcpy_proc_t *proc)
 
 extern char **environ;
 
-bool scrcpy_proc_spawn(scrcpy_proc_t *proc,
-		       const char *exe_path,
-		       const char *const *argv,
-		       const char *server_path,
+bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *const *argv, const char *server_path,
 		       const char *log_path)
 {
 	memset(proc, 0, sizeof(*proc));
