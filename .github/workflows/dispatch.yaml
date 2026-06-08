@@ -12,7 +12,17 @@ on:
 permissions:
   contents: write
 jobs:
-  check-and-build:
+  build-windows:
     if: inputs.job == 'build'
-    uses: ./.github/workflows/build-project.yaml
+    uses: ./.github/workflows/build-windows.yaml
     secrets: inherit
+
+  # build-macos:
+  #   if: inputs.job == 'build'
+  #   uses: ./.github/workflows/build-macos.yaml
+  #   secrets: inherit
+
+  # build-ubuntu:
+  #   if: inputs.job == 'build'
+  #   uses: ./.github/workflows/build-ubuntu.yaml
+  #   secrets: inherit
