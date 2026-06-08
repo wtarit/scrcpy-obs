@@ -8,7 +8,7 @@ OBS Studio plugin that adds **Android (scrcpy)** as a native source. Mirror an A
 
 Plugin spawns a patched scrcpy subprocess per source instance. scrcpy tees the raw H.264 packet stream to a loopback TCP port; the plugin parses packets, feeds NAL units to libavcodec, and pushes decoded frames into OBS through `obs_source_output_video()`.
 
-Full reasoning in [`DECISION.md`](./DECISION.md). Context map in [`CLAUDE.md`](./CLAUDE.md).
+Full reasoning in [`DECISION.md`](./DECISION.md). Context map in [`AGENTS.md`](./AGENTS.md).
 
 ```
 Android                     Plugin process (in OBS)
@@ -63,7 +63,7 @@ scrcpy-obs/
 │   ├── e2e/                OBS WebSocket end-to-end tests
 │   └── wire/               raw H.264 wire-protocol tests
 ├── scrcpy/                 git submodule → wtarit/scrcpy fork
-├── CLAUDE.md               project context for Claude Code
+├── AGENTS.md               project context for coding agents
 ├── DECISION.md             architecture decision record
 └── README.md               this file
 ```
@@ -103,6 +103,30 @@ cmake --install build_x64 --config RelWithDebInfo --prefix "C:\ProgramData\obs-s
 ```
 
 Restart OBS after install. The source appears as **Android (scrcpy)** in the Add Source menu.
+
+## Formatting
+
+- **clang-format** for C sources (`src/*.c`, `src/*.h`)
+- **gersemi** for CMake (`CMakeLists.txt`)
+
+### clang-format (Windows)
+
+Install via winget
+
+```powershell
+winget install -e --id LLVM.ClangFormat
+```
+
+### gersemi
+
+Run with `uvx`
+
+### Format the codebase
+
+```powershell
+Get-ChildItem src -Recurse -Include *.c,*.h | ForEach-Object { clang-format -i $_.FullName }
+uvx gersemi@0.21.0 -i CMakeLists.txt
+```
 
 ## Licensing
 

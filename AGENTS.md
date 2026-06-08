@@ -1,4 +1,4 @@
-# scrcpy-obs — Claude Context
+# scrcpy-obs — Agent Context
 
 ## What this repo is
 OBS Studio plugin that adds "Android (scrcpy)" as a native OBS source. Plugin spawns a patched [scrcpy](https://github.com/Genymobile/scrcpy) subprocess; subprocess tees the server→client raw H.264 packet stream (`[pts:u64 BE | flags:u8 | size:u32 BE | NAL]`) to a loopback TCP port. Plugin parses the packets, feeds NAL units to `libavcodec`, emits decoded frames via `obs_source_output_video()`.
@@ -11,8 +11,6 @@ Target platform: Windows first (user's primary OS). Linux/macOS later.
 - adb: bundled on Windows (matching scrcpy upstream). Linux/macOS use system package.
 - No `libavformat` — raw packet framing is parsed directly. scrcpy's `sc_packet_merger` pattern replicated in `scrcpy-reader.c` (buffer CONFIG, prepend to next media packet).
 
-Full reasoning for Option B + packet-tee approach: `DECISION.md`.
-
 ## Repo layout
 - `CMakeLists.txt`, `buildspec.json` — OBS plugin build (based on `obsproject/obs-plugintemplate`)
 - `src/plugin-main.c` — module entry, registers `scrcpy_source_info`
@@ -24,11 +22,6 @@ Full reasoning for Option B + packet-tee approach: `DECISION.md`.
 - `tests/` — pytest test suite (uv-managed). `wire/` = raw packet tests, `e2e/` = OBS WebSocket tests.
 - `scrcpy/` — **git submodule**. Fork `https://github.com/wtarit/scrcpy` (origin), Genymobile upstream as secondary remote. Submodule pins tag `vX.Y.Z-rawstream.N`. Do not edit files in place — go through the fork.
 
-## Licensing
-- Plugin: **GPL-2.0-or-later**.
-- scrcpy: Apache-2.0, shipped as separate Apache-2.0 binary.
-- No combined-license entanglement via the subprocess boundary.
-
 ## Build requirements (Windows)
 - Visual Studio 2022 (MSVC v143).
 - CMake ≥ 3.28.
@@ -36,7 +29,6 @@ Full reasoning for Option B + packet-tee approach: `DECISION.md`.
 - Qt 6 (bundled via obs-deps).
 - MSYS2 at `C:\msys64` — packages: `mingw-w64-x86_64-meson mingw-w64-x86_64-ninja mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libusb mingw-w64-x86_64-gcc`.
 - `gh` CLI on PATH.
-- ADB binary — bundled at release time (see DECISION.md § Bundling).
 
 ## Commands
 - `git submodule update --init --recursive` after fresh clone.
@@ -52,6 +44,12 @@ Full reasoning for Option B + packet-tee approach: `DECISION.md`.
     && ninja -C builddir
   ```
 - OBS plugin install dir on dev machine: `C:\ProgramData\obs-studio\plugins\scrcpy-obs\`. OBS ignores the AppData copy if the ProgramData one exists.
+- Format code before pushing (CI checks this — see `.github/workflows/check-format.yaml`):
+  ```powershell
+  # clang-format via winget: winget install -e --id LLVM.ClangFormat
+  Get-ChildItem src -Recurse -Include *.c,*.h | ForEach-Object { clang-format -i $_.FullName }
+  uvx gersemi@0.21.0 -i CMakeLists.txt     # gersemi is Python-only; run via uv
+  ```
 - Wire tests (no OBS needed, device + `data/bin/` required):
   ```bash
   cd tests && uv run pytest wire/ -v
