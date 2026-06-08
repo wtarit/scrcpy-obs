@@ -99,7 +99,7 @@ cmake --build --preset windows-x64
 ### 4. Install to OBS
 
 ```powershell
-cmake --install build_x64 --config RelWithDebInfo --prefix "C:\ProgramData\obs-studio\plugins"
+cmake --install build_x64 --config RelWithDebInfo
 ```
 
 Restart OBS after install. The source appears as **Android (scrcpy)** in the Add Source menu.
