@@ -46,6 +46,7 @@ target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE
     src/plugin-main.c
+    src/scrcpy-adb.c
     src/scrcpy-source.c
     src/scrcpy-process.c
     src/scrcpy-reader.c
