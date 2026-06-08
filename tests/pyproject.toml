@@ -2,7 +2,7 @@
 name = "scrcpy-obs-tests"
 version = "0.1.0"
 description = "Test suite for scrcpy-obs OBS plugin"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
     "pytest>=8.0",
     "obsws-python>=1.7",
