@@ -1,14 +1,12 @@
 # scrcpy-obs
 
-OBS Studio plugin that adds **Android (scrcpy)** as a native source. Mirror an Android device straight into OBS over ADB without requiring window capture.
+Mirror an Android device straight into OBS over ADB without requiring window capture.
 
 > **Status:** alpha
 
 ## Architecture
 
 Plugin spawns a patched scrcpy subprocess per source instance. scrcpy tees the raw H.264 packet stream to a loopback TCP port; the plugin parses packets, feeds NAL units to libavcodec, and pushes decoded frames into OBS through `obs_source_output_video()`.
-
-Full reasoning in [`DECISION.md`](./DECISION.md).
 
 ```
 Android                     Plugin process (in OBS)
@@ -33,42 +31,9 @@ Android                     Plugin process (in OBS)
 - **Linux** (x64, arm64) — secondary
 - **macOS** (AppleSilicon, x64) — secondary
 
-## Build requirements
-
-- Visual Studio 2022 + Desktop C++ workload (Windows)
-- CMake ≥ 3.28
-- OBS Studio 31.1.1+ installed (for runtime testing)
-- Qt 6 (pulled automatically by `buildspec.json` via obs-deps)
-- MSYS2 MINGW64 (Windows only, for building the scrcpy subprocess binary):
-  ```bash
-  pacman -S mingw-w64-x86_64-meson mingw-w64-x86_64-ninja \
-            mingw-w64-x86_64-sdl3 mingw-w64-x86_64-ffmpeg \
-            mingw-w64-x86_64-libusb mingw-w64-x86_64-gcc
-  ```
-- Android device with USB debugging enabled
-
-## Repo layout
-
-```
-scrcpy-obs/
-├── CMakeLists.txt          OBS plugin build
-├── buildspec.json          OBS plugin dependency manifest
-├── src/
-│   └── plugin-main.c       module entry (stub)
-├── data/locale/            i18n strings
-├── cmake/                  CMake helpers
-├── tests/                  pytest test suite (uv-managed)
-│   ├── pyproject.toml
-│   ├── conftest.py
-│   ├── e2e/                OBS WebSocket end-to-end tests
-│   └── wire/               raw H.264 wire-protocol tests
-├── scrcpy/                 git submodule → wtarit/scrcpy fork
-├── AGENTS.md               project context for coding agents
-├── DECISION.md             architecture decision record
-└── README.md               this file
-```
-
 ## Build
+
+Prerequisites: follow [scrcpy's build guide](https://github.com/Genymobile/scrcpy/blob/master/doc/build.md) (MSYS2 MINGW64 on Windows) and the [OBS plugin template quick start](https://github.com/obsproject/obs-plugintemplate/wiki/Quick-Start-Guide).
 
 ### 1. Clone
 
@@ -169,16 +134,3 @@ Both the plugin (device list dropdown) and scrcpy itself resolve `adb` in the sa
 1. `$ADB` environment variable — set to a full path to override
 2. Bundled `adb.exe` in `data/bin/` (ships with the plugin)
 3. `adb` on system `PATH`
-
-Normal users never need to configure anything. Set `$ADB` only if you need a specific ADB version (e.g. enterprise MDM builds).
-
-## Potential improvements
-
-- **CI dep caching** — Windows CI job downloads OBS source, prebuilt obs-deps, and Qt6 on every run (~several GB). Adding `actions/cache` keyed on `buildspec.json` dep versions would skip re-download when deps haven't changed. macOS/Linux already cache compiler output (`.ccache`); Windows has no cache at all.
-
-## See also
-
-- [scrcpy](https://github.com/Genymobile/scrcpy) — upstream project
-- [obs-plugintemplate](https://github.com/obsproject/obs-plugintemplate) — template this plugin is based on
-- [DistroAV](https://github.com/DistroAV/DistroAV) — NDI-for-OBS plugin, architectural reference
-- [stream-sink PR #6721](https://github.com/Genymobile/scrcpy/pull/6721) — scrcpy PR used for MPEG-TS output
