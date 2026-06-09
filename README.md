@@ -1,14 +1,14 @@
 # scrcpy-obs
 
-OBS Studio plugin that adds **Android (scrcpy)** as a native source. Mirror an Android device straight into OBS over ADB — no window capture, no display mirror, no virtual camera driver.
+OBS Studio plugin that adds **Android (scrcpy)** as a native source. Mirror an Android device straight into OBS over ADB without requiring window capture.
 
-> **Status:** pre-alpha, active development on `dev/rawstream`.
+> **Status:** alpha
 
 ## Architecture
 
 Plugin spawns a patched scrcpy subprocess per source instance. scrcpy tees the raw H.264 packet stream to a loopback TCP port; the plugin parses packets, feeds NAL units to libavcodec, and pushes decoded frames into OBS through `obs_source_output_video()`.
 
-Full reasoning in [`DECISION.md`](./DECISION.md). Context map in [`AGENTS.md`](./AGENTS.md).
+Full reasoning in [`DECISION.md`](./DECISION.md).
 
 ```
 Android                     Plugin process (in OBS)
@@ -42,7 +42,7 @@ Android                     Plugin process (in OBS)
 - MSYS2 MINGW64 (Windows only, for building the scrcpy subprocess binary):
   ```bash
   pacman -S mingw-w64-x86_64-meson mingw-w64-x86_64-ninja \
-            mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg \
+            mingw-w64-x86_64-sdl3 mingw-w64-x86_64-ffmpeg \
             mingw-w64-x86_64-libusb mingw-w64-x86_64-gcc
   ```
 - Android device with USB debugging enabled
@@ -82,10 +82,12 @@ git submodule update --init --recursive
 
 ```bash
 cd scrcpy
-meson setup builddir --buildtype=release -Dcompile_server=false
+meson setup builddir --buildtype=release -Dcompile_server=false -Dportable=true
 ninja -C builddir
 cd ..
 ```
+
+Use `-Dportable=true` so scrcpy finds `scrcpy-server` next to the executable.
 
 Output: `scrcpy/builddir/app/scrcpy.exe` + DLLs. Copy these (plus `scrcpy-server`) into `data/bin/` before building the plugin, or the install step will fail.
 
@@ -128,11 +130,6 @@ Get-ChildItem src -Recurse -Include *.c,*.h | ForEach-Object { clang-format -i $
 uvx gersemi@0.21.0 -i CMakeLists.txt
 ```
 
-## Licensing
-
-- Plugin: **GPL-2.0-or-later** (matching libobs).
-- scrcpy (Apache-2.0) is shipped as a **separate binary**, not linked into the plugin — so the two remain separate works under their own licenses. See `DECISION.md` § Licensing for full reasoning.
-
 ## Testing
 
 Test suite lives in `tests/`, managed by [uv](https://docs.astral.sh/uv/).
@@ -145,7 +142,7 @@ uv sync          # first time: creates .venv and installs deps
 **Wire tests** — validate raw H.264 packet stream from patched scrcpy. Requires device + `data/bin/` populated:
 
 ```bash
-# auto-detects ADB device; or set ADB_SERIAL=<serial>
+# default to emulator-5554; or set ADB_SERIAL=<serial>
 uv run pytest wire/ -v
 ```
 
