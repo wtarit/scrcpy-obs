@@ -1,4 +1,5 @@
-#define MyAppName "@CMAKE_PROJECT_NAME@"
+#define MyAppName "@PLUGIN_DISPLAY_NAME@"
+#define MyAppId "@CMAKE_PROJECT_NAME@"
 #define MyAppVersion "@CMAKE_PROJECT_VERSION@"
 #define MyAppPublisher "@PLUGIN_AUTHOR@"
 #define MyAppURL "@PLUGIN_WEBSITE@"
@@ -13,9 +14,9 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={commonappdata}\obs-studio\plugins\{#MyAppName}
+DefaultDirName={commonappdata}\obs-studio\plugins\{#MyAppId}
 DefaultGroupName={#MyAppName}
-OutputBaseFilename={#MyAppName}-{#MyAppVersion}-Windows-Installer
+OutputBaseFilename={#MyAppId}-{#MyAppVersion}-Windows-Installer
 Compression=lzma
 SolidCompression=yes
 DirExistsWarning=no

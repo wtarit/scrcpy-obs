@@ -1,136 +1,50 @@
-# scrcpy-obs
+# scrcpy Source for OBS
 
-Mirror an Android device straight into OBS over ADB without requiring window capture.
+Android screen and camera mirroring for OBS Studio, powered by [scrcpy](https://github.com/Genymobile/scrcpy). Each source captures a connected Android device natively — no window capture or extra desktop app.
 
-> **Status:** alpha
+> **Status:** alpha — Windows x64 only for now.
 
-## Architecture
+## Requirements
 
-Plugin spawns a patched scrcpy subprocess per source instance. scrcpy tees the raw H.264 packet stream to a loopback TCP port; the plugin parses packets, feeds NAL units to libavcodec, and pushes decoded frames into OBS through `obs_source_output_video()`.
+- **OBS Studio 31** or newer (64-bit)
+- **Windows 11** (x64)
+- **Android device** with [USB debugging](https://developer.android.com/studio/debug/dev-options) enabled
 
-```
-Android                     Plugin process (in OBS)
-+--------------+           +-------------------------------+
-| scrcpy-server| --ADB---> | scrcpy.exe (patched)          |
-| (MediaCodec) |           |   --raw-video-tcp=<port>      |
-+--------------+           +-------------+-----------------+
-                                         | raw H.264 packets
-                                         | [pts:u64|flags:u8|size:u32|NAL]
-                                         v
-                           +-------------------------------+
-                           | scrcpy-obs plugin             |
-                           |   packet merge + avcodec      |
-                           +-------------+-----------------+
-                                         v
-                                      OBS source
-```
+## Install
 
-## Targets
+1. Download the latest **Windows installer** from [Releases](https://github.com/wtarit/scrcpy-obs/releases).
+2. Run the installer and restart OBS.
 
-- **Windows** (x64) — primary, MSVC
-- **Linux** (x64, arm64) — secondary
-- **macOS** (AppleSilicon, x64) — secondary
+The source appears as **Android (scrcpy)** in the Add Source menu.
 
-## Build
+## Usage
 
-Prerequisites: follow [scrcpy's build guide](https://github.com/Genymobile/scrcpy/blob/master/doc/build.md) (MSYS2 MINGW64 on Windows) and the [OBS plugin template quick start](https://github.com/obsproject/obs-plugintemplate/wiki/Quick-Start-Guide).
+1. Connect your Android device.
+2. In OBS, click **+** → **Android (scrcpy)** → create the source.
+3. Approve the USB debugging prompt on the phone.
 
-### 1. Clone
+You can add multiple sources for multiple devices (one source per device).
 
-```bash
-git clone git@github.com:wtarit/scrcpy-obs.git
-cd scrcpy-obs
-git submodule update --init --recursive
-```
+## Source settings
 
-### 2. Build the scrcpy subprocess binary (MSYS2 MINGW64 shell)
+| Setting             | Description                                                   |
+| ------------------- | ------------------------------------------------------------- |
+| **Device**          | Android device from the ADB device list.                      |
+| **Refresh Devices** | Update devices list.                                          |
+| **Video source**    | **Display** (screen mirror) or **Camera** (device camera).    |
+| **Camera ID**       | Camera index when Video source is Camera (0–9).               |
+| **Max size**        | Longest-edge cap in pixels; `0` = native resolution.          |
+| **Bitrate (Kbps)**  | Encoder bitrate (default 8000). Lower if you see lag.         |
+| **Video codec**     | H.264 (default), H.265, or AV1. H.264 is the most compatible. |
 
-```bash
-cd scrcpy
-meson setup builddir --buildtype=release -Dcompile_server=false -Dportable=true
-ninja -C builddir
-cd ..
-```
+## Troubleshooting
 
-Use `-Dportable=true` so scrcpy finds `scrcpy-server` next to the executable.
+**Device not in the list**
 
-Output: `scrcpy/builddir/app/scrcpy.exe` + DLLs. Copy these (plus `scrcpy-server`) into `data/bin/` before building the plugin, or the install step will fail.
+- Unlock the phone and accept the USB debugging authorization dialog.
+- Click **Refresh Devices**.
+- Open a terminal and run `adb devices` — the device should show as `device` (not `unauthorized` or `offline`).
 
-### 3. Build the OBS plugin (PowerShell / Developer Command Prompt)
+## Building from source
 
-```powershell
-cmake --preset windows-x64
-cmake --build --preset windows-x64
-```
-
-### 4. Install to OBS
-
-```powershell
-cmake --install build_x64 --config RelWithDebInfo
-```
-
-Restart OBS after install. The source appears as **Android (scrcpy)** in the Add Source menu.
-
-## Formatting
-
-- **clang-format** for C sources (`src/*.c`, `src/*.h`)
-- **gersemi** for CMake (`CMakeLists.txt`)
-
-### clang-format (Windows)
-
-Install via winget
-
-```powershell
-winget install -e --id LLVM.ClangFormat
-```
-
-### gersemi
-
-Run with `uvx`
-
-### Format the codebase
-
-```powershell
-Get-ChildItem src -Recurse -Include *.c,*.h | ForEach-Object { clang-format -i $_.FullName }
-uvx gersemi@0.21.0 -i CMakeLists.txt
-```
-
-## Testing
-
-Test suite lives in `tests/`, managed by [uv](https://docs.astral.sh/uv/).
-
-```bash
-cd tests
-uv sync          # first time: creates .venv and installs deps
-```
-
-**Wire tests** — validate raw H.264 packet stream from patched scrcpy. Requires device + `data/bin/` populated:
-
-```bash
-# default to emulator-5554; or set ADB_SERIAL=<serial>
-uv run pytest wire/ -v
-```
-
-**E2E tests** — validate full pipeline through OBS. Requires OBS running with WebSocket enabled (Tools → WebSocket Server Settings, port 4455):
-
-```bash
-OBS_PASSWORD=<your-password> ADB_SERIAL=<serial> uv run pytest e2e/ -v
-```
-
-Environment variables:
-
-| Variable         | Default         | Description                                   |
-| ---------------- | --------------- | --------------------------------------------- |
-| `OBS_HOST`       | `127.0.0.1`     | OBS WebSocket host                            |
-| `OBS_PORT`       | `4455`          | OBS WebSocket port                            |
-| `OBS_PASSWORD`   | _(empty)_       | OBS WebSocket password                        |
-| `ADB_SERIAL`     | `emulator-5554` | ADB device serial                             |
-| `SCRCPY_BIN_DIR` | `data/bin`      | Directory with `scrcpy.exe` + `scrcpy-server` |
-
-## ADB resolution
-
-Both the plugin (device list dropdown) and scrcpy itself resolve `adb` in the same order:
-
-1. `$ADB` environment variable — set to a full path to override
-2. Bundled `adb.exe` in `data/bin/` (ships with the plugin)
-3. `adb` on system `PATH`
+For developers and contributors: [CONTRIBUTING.md](CONTRIBUTING.md).
