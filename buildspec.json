@@ -41,5 +41,8 @@
   "version": "0.0.1",
   "author": "wtarit",
   "website": "https://github.com/wtarit/scrcpy-obs",
-  "email": "tarit@wtarit.me"
+  "email": "tarit@wtarit.me",
+  "uuids": {
+    "windowsApp": "1d13e592-1632-40db-ba33-b63c974a623b"
+  }
 }
