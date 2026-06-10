@@ -107,7 +107,7 @@ Format the codebase:
 
 ```powershell
 Get-ChildItem src -Recurse -Include *.c,*.h | ForEach-Object { clang-format -i $_.FullName }
-uvx gersemi@0.21.0 -i CMakeLists.txt
+uvx gersemi@0.21.0 -i .\cmake\ .\CMakeLists.txt
 ```
 
 ## Testing

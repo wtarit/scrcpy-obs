@@ -63,7 +63,9 @@ function(set_target_properties_plugin target)
   endif()
 
   configure_file(
-    cmake/windows/resources/installer-windows.iss.in "${CMAKE_CURRENT_BINARY_DIR}/installer-windows.iss" @ONLY
+    cmake/windows/resources/installer-windows.iss.in
+    "${CMAKE_CURRENT_BINARY_DIR}/installer-windows.iss"
+    @ONLY
   )
 endfunction()
 
