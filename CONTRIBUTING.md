@@ -113,3 +113,24 @@ uvx gersemi@0.21.0 -i .\cmake\ .\CMakeLists.txt
 ## Testing
 
 See [tests/README.md](tests/README.md).
+
+## Building Windows Installer Locally
+
+- Ensure that scrcpy, adb and relevent .dll is in `data/bin` folder. You can build patched version of scrcpy or download [prebuilt binary](https://github.com/wtarit/scrcpy/releases).
+
+```Powershell
+# build + install
+cmake --build --preset windows-x64 --config RelWithDebInfo
+cmake --install build_x64 --prefix "$PWD/release/RelWithDebInfo" --config RelWithDebInfo
+
+# flatten scrcpy-obs/ into Package (what iscc expects)
+New-Item -ItemType Directory -Force -Path release/Package | Out-Null
+
+Copy-Item -Path release/RelWithDebInfo/scrcpy-obs/* -Destination release/Package -Recurse -Force
+
+# compile the installer
+iscc .\build_x64\installer-windows.iss /O"$PWD\release"
+
+# cleanup
+Remove-Item .\release\Package -Recurse -Force
+```
