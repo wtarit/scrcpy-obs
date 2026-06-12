@@ -1,0 +1,43 @@
+name: Fetch scrcpy Binary
+description: Download patched scrcpy from wtarit/scrcpy GitHub Release into data/bin/
+
+inputs:
+  platform:
+    description: 'Release asset platform slug (win64, linux-x86_64, macos-aarch64)'
+    required: true
+  format:
+    description: 'Archive format (zip or tar.gz)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Download and extract scrcpy
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        SCRCPY_VERSION=$(git -C scrcpy describe --tags --exact-match)
+        echo "Downloading scrcpy ${SCRCPY_VERSION} for ${{ inputs.platform }}..."
+
+        ASSET_NAME="scrcpy-${{ inputs.platform }}-${SCRCPY_VERSION}.${{ inputs.format }}"
+
+        gh release download "${SCRCPY_VERSION}" \
+          --repo wtarit/scrcpy \
+          --pattern "${ASSET_NAME}" \
+          --dir "${RUNNER_TEMP}"
+
+        mkdir -p data/bin
+
+        if [[ "${{ inputs.format }}" == "zip" ]]; then
+          unzip -o "${RUNNER_TEMP}/${ASSET_NAME}" -d "${RUNNER_TEMP}/scrcpy-extracted"
+        else
+          mkdir -p "${RUNNER_TEMP}/scrcpy-extracted"
+          tar -xzf "${RUNNER_TEMP}/${ASSET_NAME}" -C "${RUNNER_TEMP}/scrcpy-extracted"
+        fi
+
+        EXTRACTED_DIR=$(find "${RUNNER_TEMP}/scrcpy-extracted" -mindepth 1 -maxdepth 1 -type d | head -1)
+        cp -r "${EXTRACTED_DIR}/." data/bin/
+
+        echo "data/bin contents:"
+        ls -la data/bin/

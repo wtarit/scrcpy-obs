@@ -99,6 +99,12 @@ jobs:
           "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
           "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
 
+      - name: Fetch scrcpy Binary 📦
+        uses: ./.github/actions/fetch-scrcpy
+        with:
+          platform: win64
+          format: zip
+
       - name: Build Plugin 🧱
         uses: ./.github/actions/build-plugin
         with:

@@ -107,6 +107,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-
 
+      - name: Fetch scrcpy Binary 📦
+        uses: ./.github/actions/fetch-scrcpy
+        with:
+          platform: linux-x86_64
+          format: tar.gz
+
       - name: Build Plugin 🧱
         uses: ./.github/actions/build-plugin
         with:
