@@ -81,7 +81,9 @@ function Package {
     Push-Location -Stack BuildTemp
     Ensure-Location -Path "${ProjectRoot}/release"
 
-    Copy-Item -Path ${Configuration} -Destination Package -Recurse -Force
+    # CMake installs to release/<config>/<product>/; iscc expects bin/ and data/ at Package root.
+    New-Item -ItemType Directory -Force -Path Package | Out-Null
+    Copy-Item -Path "${Configuration}/${ProductName}/*" -Destination Package -Recurse -Force
 
     Invoke-External iscc ${IsccFile} /O"${ProjectRoot}/release" /F"${OutputName}-Installer"
 
