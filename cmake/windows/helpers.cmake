@@ -56,6 +56,17 @@ function(set_target_properties_plugin target)
 
   configure_file(cmake/windows/resources/resource.rc.in "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.rc")
   target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.rc")
+
+  check_uuid(${UUID_APP} VALID_UUID)
+  if(NOT VALID_UUID)
+    message(FATAL_ERROR "uuids.windowsApp in buildspec.json must be a valid UUID (got: '${UUID_APP}')")
+  endif()
+
+  configure_file(
+    cmake/windows/resources/installer-windows.iss.in
+    "${CMAKE_CURRENT_BINARY_DIR}/installer-windows.iss"
+    @ONLY
+  )
 endfunction()
 
 # Helper function to add resources into bundle

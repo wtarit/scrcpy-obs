@@ -65,7 +65,6 @@ def scrcpy_proc():
         args.append(f"--serial={ADB_SERIAL}")
 
     env = os.environ.copy()
-    env["SCRCPY_SERVER_PATH"] = str(server)
     env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
 
     proc = subprocess.Popen(args, env=env)

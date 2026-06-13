@@ -25,7 +25,6 @@
 #endif
 
 #define SCRCPY_EXE_NAME "scrcpy.exe"
-#define SCRCPY_SERVER_NAME "scrcpy-server"
 
 struct scrcpy_src {
 	obs_source_t *source;
@@ -109,13 +108,6 @@ static void start_scrcpy(struct scrcpy_src *ctx, obs_data_t *settings)
 	}
 
 	char *exe_path = path_join(bin_dir, SCRCPY_EXE_NAME);
-	char *server_path = path_join(bin_dir, SCRCPY_SERVER_NAME);
-
-	const char *env_server = getenv("SCRCPY_SERVER_PATH");
-	if (env_server && *env_server) {
-		bfree(server_path);
-		server_path = bstrdup(env_server);
-	}
 
 	char bitrate_arg[64];
 	snprintf(bitrate_arg, sizeof(bitrate_arg), "--video-bit-rate=%dK", ctx->bitrate_kbps);
@@ -178,7 +170,7 @@ static void start_scrcpy(struct scrcpy_src *ctx, obs_data_t *settings)
 	obs_log(LOG_INFO, "scrcpy-source: spawning %s (port=%u, log=%s)", exe_path, (unsigned)port,
 		log_path ? log_path : "(none)");
 
-	if (scrcpy_proc_spawn(&ctx->proc, exe_path, argv, server_path, log_path)) {
+	if (scrcpy_proc_spawn(&ctx->proc, exe_path, argv, log_path)) {
 		ctx->proc_alive = true;
 	} else {
 		obs_log(LOG_ERROR, "scrcpy-source: spawn failed");
@@ -189,7 +181,6 @@ static void start_scrcpy(struct scrcpy_src *ctx, obs_data_t *settings)
 
 	dstr_free(&sink_arg);
 	bfree(exe_path);
-	bfree(server_path);
 	bfree(bin_dir);
 }
 

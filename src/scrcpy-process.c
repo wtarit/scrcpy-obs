@@ -50,31 +50,7 @@ static wchar_t *utf8_to_wide(const char *utf8)
 	return w;
 }
 
-static void build_env_block(struct dstr *env_block, const char *server_path)
-{
-	wchar_t *existing = GetEnvironmentStringsW();
-	for (wchar_t *p = existing; *p; p += wcslen(p) + 1) {
-		int u8_len = WideCharToMultiByte(CP_UTF8, 0, p, -1, NULL, 0, NULL, NULL);
-		char *u8 = bmalloc((size_t)u8_len);
-		WideCharToMultiByte(CP_UTF8, 0, p, -1, u8, u8_len, NULL, NULL);
-		bool skip = server_path && _strnicmp(u8, "SCRCPY_SERVER_PATH=", 19) == 0;
-		if (!skip)
-			dstr_ncat(env_block, u8, (size_t)u8_len);
-		bfree(u8);
-	}
-	FreeEnvironmentStringsW(existing);
-
-	if (server_path) {
-		struct dstr e = {0};
-		dstr_printf(&e, "SCRCPY_SERVER_PATH=%s", server_path);
-		dstr_ncat(env_block, e.array, e.len + 1);
-		dstr_free(&e);
-	}
-	dstr_cat_ch(env_block, '\0');
-}
-
-bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *const *argv, const char *server_path,
-		       const char *log_path)
+bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *const *argv, const char *log_path)
 {
 	memset(proc, 0, sizeof(*proc));
 
@@ -84,14 +60,6 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *co
 		dstr_cat_ch(&cmdline, ' ');
 		quote_arg(&cmdline, argv[i]);
 	}
-
-	struct dstr env_block_utf8 = {0};
-	build_env_block(&env_block_utf8, server_path);
-
-	int wenv_len = MultiByteToWideChar(CP_UTF8, 0, env_block_utf8.array, (int)env_block_utf8.len, NULL, 0);
-	wchar_t *wenv = bmalloc((size_t)(wenv_len + 1) * sizeof(wchar_t));
-	MultiByteToWideChar(CP_UTF8, 0, env_block_utf8.array, (int)env_block_utf8.len, wenv, wenv_len);
-	wenv[wenv_len] = 0;
 
 	wchar_t *wexe = utf8_to_wide(exe_path);
 	wchar_t *wcmd = utf8_to_wide(cmdline.array);
@@ -130,15 +98,13 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *co
 	}
 
 	PROCESS_INFORMATION pi = {0};
-	DWORD flags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW | CREATE_SUSPENDED;
+	DWORD flags = CREATE_NO_WINDOW | CREATE_SUSPENDED;
 
-	BOOL ok = CreateProcessW(wexe, wcmd, NULL, NULL, TRUE, flags, wenv, NULL, &si, &pi);
+	BOOL ok = CreateProcessW(wexe, wcmd, NULL, NULL, TRUE, flags, NULL, NULL, &si, &pi);
 
 	bfree(wexe);
 	bfree(wcmd);
-	bfree(wenv);
 	dstr_free(&cmdline);
-	dstr_free(&env_block_utf8);
 	if (log_h != INVALID_HANDLE_VALUE)
 		CloseHandle(log_h);
 
@@ -208,8 +174,7 @@ void scrcpy_proc_close(scrcpy_proc_t *proc)
 
 extern char **environ;
 
-bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *const *argv, const char *server_path,
-		       const char *log_path)
+bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *const *argv, const char *log_path)
 {
 	memset(proc, 0, sizeof(*proc));
 	(void)log_path;
@@ -223,9 +188,6 @@ bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *co
 	for (size_t i = 0; i < argc; ++i)
 		spawn_argv[i + 1] = (char *)argv[i];
 	spawn_argv[argc + 1] = NULL;
-
-	if (server_path)
-		setenv("SCRCPY_SERVER_PATH", server_path, 1);
 
 	pid_t pid = 0;
 	int rc = posix_spawn(&pid, exe_path, NULL, NULL, spawn_argv, environ);

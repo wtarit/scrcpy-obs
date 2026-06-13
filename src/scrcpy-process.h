@@ -21,8 +21,7 @@ typedef struct {
 extern "C" {
 #endif
 
-bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *const *argv, const char *server_path,
-		       const char *log_path);
+bool scrcpy_proc_spawn(scrcpy_proc_t *proc, const char *exe_path, const char *const *argv, const char *log_path);
 
 bool scrcpy_proc_alive(const scrcpy_proc_t *proc);
 
