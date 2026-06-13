@@ -1,13 +1,14 @@
 # scrcpy Source for OBS
 
-Android screen and camera mirroring for OBS Studio, powered by [scrcpy](https://github.com/Genymobile/scrcpy). Each source captures a connected Android device natively — no window capture or extra desktop app.
+Android screen and camera mirroring for OBS Studio, powered by [scrcpy](https://github.com/Genymobile/scrcpy). Each source captures a connected Android device without requiring scrcpy desktop window capture. Allow you to stream/record your Android device at native source resolution.
 
-> **Status:** alpha — Windows x64 only for now.
+<img width="500" alt="scrcpy Source settings" src="https://github.com/user-attachments/assets/37bec7d2-c4f6-47ee-ae51-52c76e143af1" />
+
+> **Status:** beta  
+> Currently only support Windows with Linux planned, tested with OBS 32
 
 ## Requirements
 
-- **OBS Studio 31** or newer (64-bit)
-- **Windows 11** (x64)
 - **Android device** with [USB debugging](https://developer.android.com/studio/debug/dev-options) enabled
 
 ## Install
@@ -16,6 +17,8 @@ Android screen and camera mirroring for OBS Studio, powered by [scrcpy](https://
 2. Run the installer and restart OBS.
 
 The source appears as **Android (scrcpy)** in the Add Source menu.
+
+> Note: You can also use the zipped version of the plugin directly by unzipping it and place the plugin in obs plugins folder.
 
 ## Usage
 
@@ -43,7 +46,6 @@ You can add multiple sources for multiple devices (one source per device).
 
 - Unlock the phone and accept the USB debugging authorization dialog.
 - Click **Refresh Devices**.
-- Open a terminal and run `adb devices` — the device should show as `device` (not `unauthorized` or `offline`).
 
 ## Building from source
 
