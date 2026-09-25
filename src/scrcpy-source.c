@@ -35,6 +35,7 @@ struct scrcpy_src {
 
 	char *serial;
 	char *video_source;
+	int display_id;
 	int camera_id;
 	int max_size;
 	int bitrate_kbps;
@@ -128,6 +129,10 @@ static void start_scrcpy(struct scrcpy_src *ctx, obs_data_t *settings)
 	if (ctx->video_source && strcmp(ctx->video_source, "camera") == 0)
 		snprintf(camera_arg, sizeof(camera_arg), "--camera-id=%d", ctx->camera_id);
 
+	char display_arg[64] = {0};
+	if (ctx->display_id > 0)
+		snprintf(display_arg, sizeof(display_arg), "--display-id=%d", ctx->display_id);
+
 	char serial_arg[128] = {0};
 	if (ctx->serial && *ctx->serial)
 		snprintf(serial_arg, sizeof(serial_arg), "--serial=%s", ctx->serial);
@@ -151,6 +156,8 @@ static void start_scrcpy(struct scrcpy_src *ctx, obs_data_t *settings)
 		argv[n++] = source_arg;
 	if (camera_arg[0])
 		argv[n++] = camera_arg;
+	if (display_arg[0])
+		argv[n++] = display_arg;
 	if (serial_arg[0])
 		argv[n++] = serial_arg;
 	argv[n] = NULL;
@@ -205,6 +212,7 @@ static void load_settings(struct scrcpy_src *ctx, obs_data_t *settings)
 	ctx->serial = bstrdup(obs_data_get_string(settings, "serial"));
 	ctx->video_source = bstrdup(obs_data_get_string(settings, "video_source"));
 	ctx->codec = bstrdup(obs_data_get_string(settings, "codec"));
+	ctx->display_id = (int)obs_data_get_int(settings, "display_id");
 	ctx->camera_id = (int)obs_data_get_int(settings, "camera_id");
 	ctx->max_size = (int)obs_data_get_int(settings, "max_size");
 	ctx->bitrate_kbps = (int)obs_data_get_int(settings, "bitrate_kbps");
@@ -255,6 +263,7 @@ static void src_get_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_string(settings, "video_source", "display");
 	obs_data_set_default_int(settings, "camera_id", 0);
+	obs_data_set_default_int(settings, "display_id", 0);
 	obs_data_set_default_int(settings, "max_size", 0);
 	obs_data_set_default_int(settings, "bitrate_kbps", 8000);
 	obs_data_set_default_string(settings, "codec", "h264");
@@ -298,6 +307,9 @@ static obs_properties_t *src_get_properties(void *data)
 	obs_property_list_add_string(src_list, "Display", "display");
 	obs_property_list_add_string(src_list, "Camera", "camera");
 	obs_property_set_modified_callback(src_list, video_source_modified);
+
+	obs_property_t *display_id = obs_properties_add_int(props, "display_id", obs_module_text("DisplayId"), 0, 9, 1);
+	obs_property_set_modified_callback(display_id, video_source_modified);
 
 	obs_property_t *camera_id = obs_properties_add_int(props, "camera_id", obs_module_text("CameraId"), 0, 9, 1);
 	obs_property_set_visible(camera_id, ctx->video_source && strcmp(ctx->video_source, "camera") == 0);
