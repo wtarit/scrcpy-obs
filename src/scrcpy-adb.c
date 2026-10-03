@@ -58,37 +58,24 @@ static char *get_adb_exe(void)
 }
 
 #ifdef _WIN32
-static char *adb_devices_l(const char *adb_exe)
+char *adb_run_capture(const char *cmdline)
 {
-	struct dstr cmdline = {0};
-	if (strchr(adb_exe, ' ')) {
-		dstr_cat_ch(&cmdline, '"');
-		dstr_cat(&cmdline, adb_exe);
-		dstr_cat_ch(&cmdline, '"');
-	} else {
-		dstr_cat(&cmdline, adb_exe);
-	}
-	dstr_cat(&cmdline, " devices -l");
-
 	SECURITY_ATTRIBUTES sa = {sizeof(sa), NULL, TRUE};
 	HANDLE rd, wr;
-	if (!CreatePipe(&rd, &wr, &sa, 0)) {
-		dstr_free(&cmdline);
+	if (!CreatePipe(&rd, &wr, &sa, 0))
 		return NULL;
-	}
 	SetHandleInformation(rd, HANDLE_FLAG_INHERIT, 0);
 
-	int wlen = MultiByteToWideChar(CP_UTF8, 0, cmdline.array, -1, NULL, 0);
+	int wlen = MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, NULL, 0);
 	wchar_t *wcmd = bmalloc((size_t)wlen * sizeof(wchar_t));
-	MultiByteToWideChar(CP_UTF8, 0, cmdline.array, -1, wcmd, wlen);
-	dstr_free(&cmdline);
+	MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, wcmd, wlen);
 
 	STARTUPINFOW si = {0};
 	si.cb = sizeof(si);
 	si.dwFlags = STARTF_USESTDHANDLES;
 	si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
 	si.hStdOutput = wr;
-	si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+	si.hStdError = wr;
 
 	PROCESS_INFORMATION pi = {0};
 	BOOL ok = CreateProcessW(NULL, wcmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
@@ -108,16 +95,16 @@ static char *adb_devices_l(const char *adb_exe)
 		dstr_cat(&out, buf);
 	}
 	CloseHandle(rd);
-	WaitForSingleObject(pi.hProcess, 5000);
+	WaitForSingleObject(pi.hProcess, 10000);
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
 	return out.array;
 }
 #else
-static char *adb_devices_l(const char *adb_exe)
+char *adb_run_capture(const char *cmdline)
 {
 	struct dstr cmd = {0};
-	dstr_printf(&cmd, "\"%s\" devices -l 2>/dev/null", adb_exe);
+	dstr_printf(&cmd, "%s 2>&1", cmdline);
 	FILE *f = popen(cmd.array, "r");
 	dstr_free(&cmd);
 	if (!f)
@@ -130,6 +117,15 @@ static char *adb_devices_l(const char *adb_exe)
 	return out.array;
 }
 #endif
+
+static char *adb_devices_l(const char *adb_exe)
+{
+	struct dstr cmdline = {0};
+	dstr_catf(&cmdline, "\"%s\" devices -l", adb_exe);
+	char *out = adb_run_capture(cmdline.array);
+	dstr_free(&cmdline);
+	return out;
+}
 
 void fill_device_list(obs_property_t *list)
 {
@@ -252,4 +248,69 @@ char *first_adb_serial(void)
 
 	bfree(output);
 	return result;
+}
+
+#define CAMERA_CONF_PATH "/data/local/tmp/scrcpy-obs-camera.conf"
+#define CAMERA_INFO_PATH "/data/local/tmp/scrcpy-obs-camera.info"
+
+void adb_write_camera_conf(const char *serial, const char *content)
+{
+	if (!serial || !*serial || !content)
+		return;
+	/* the serial ends up in a command line: accept only plain characters */
+	for (const char *c = serial; *c; c++) {
+		if (!((*c >= '0' && *c <= '9') || (*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z') || *c == '.' ||
+		      *c == ':' || *c == '-' || *c == '_'))
+			return;
+	}
+
+	char *adb = get_adb_exe();
+	struct dstr cmd = {0};
+	dstr_catf(&cmd, "\"%s\" -s %s shell \"printf '%s' > %s.tmp && mv %s.tmp %s\"", adb, serial, content, CAMERA_CONF_PATH,
+		  CAMERA_CONF_PATH, CAMERA_CONF_PATH);
+	bfree(adb);
+
+#ifdef _WIN32
+	int wlen = MultiByteToWideChar(CP_UTF8, 0, cmd.array, -1, NULL, 0);
+	wchar_t *wcmd = bmalloc((size_t)wlen * sizeof(wchar_t));
+	MultiByteToWideChar(CP_UTF8, 0, cmd.array, -1, wcmd, wlen);
+
+	STARTUPINFOW si = {0};
+	si.cb = sizeof(si);
+	PROCESS_INFORMATION pi = {0};
+	if (CreateProcessW(NULL, wcmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+		WaitForSingleObject(pi.hProcess, 3000);
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+	}
+	bfree(wcmd);
+#else
+	dstr_cat(&cmd, " >/dev/null 2>&1");
+	int rc = system(cmd.array);
+	UNUSED_PARAMETER(rc);
+#endif
+	dstr_free(&cmd);
+}
+
+char *adb_read_camera_info(const char *serial)
+{
+	if (!serial || !*serial)
+		return NULL;
+	for (const char *c = serial; *c; c++) {
+		if (!((*c >= '0' && *c <= '9') || (*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z') || *c == '.' ||
+		      *c == ':' || *c == '-' || *c == '_'))
+			return NULL;
+	}
+	char *adb = get_adb_exe();
+	struct dstr cmd = {0};
+	dstr_catf(&cmd, "\"%s\" -s %s shell cat %s", adb, serial, CAMERA_INFO_PATH);
+	bfree(adb);
+	char *out = adb_run_capture(cmd.array);
+	dstr_free(&cmd);
+	return out;
+}
+
+char *adb_exe_path(void)
+{
+	return get_adb_exe();
 }
