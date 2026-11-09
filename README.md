@@ -5,7 +5,7 @@ Android screen and camera mirroring for OBS Studio, powered by [scrcpy](https://
 <img width="500" alt="scrcpy Source settings" src="https://github.com/user-attachments/assets/37bec7d2-c4f6-47ee-ae51-52c76e143af1" />
 
 > **Status:** beta  
-> Currently only support Windows with Linux planned, tested with OBS 32
+> Currently only supports Windows, built against OBS 33.0.1
 
 ## Requirements
 

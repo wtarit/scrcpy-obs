@@ -91,7 +91,7 @@ static bool pick_ephemeral_port(uint16_t *out)
 	return true;
 }
 
-static void start_scrcpy(struct scrcpy_src *ctx, obs_data_t *settings)
+static void start_scrcpy(struct scrcpy_src *ctx)
 {
 	uint16_t port = 0;
 	if (!pick_ephemeral_port(&port)) {
@@ -227,7 +227,7 @@ static void *src_create(obs_data_t *settings, obs_source_t *source)
 		}
 	}
 
-	start_scrcpy(ctx, settings);
+	start_scrcpy(ctx);
 	return ctx;
 }
 
@@ -248,7 +248,7 @@ static void src_update(void *data, obs_data_t *settings)
 	struct scrcpy_src *ctx = data;
 	stop_scrcpy(ctx);
 	load_settings(ctx, settings);
-	start_scrcpy(ctx, settings);
+	start_scrcpy(ctx);
 }
 
 static void src_get_defaults(obs_data_t *settings)
@@ -291,7 +291,7 @@ static obs_properties_t *src_get_properties(void *data)
 							   OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	fill_device_list(dev_list);
 
-	obs_properties_add_button(props, "refresh_devices", obs_module_text("RefreshDevices"), refresh_devices_clicked);
+	obs_properties_add_button2(props, "refresh_devices", obs_module_text("RefreshDevices"), refresh_devices_clicked, NULL);
 
 	obs_property_t *src_list = obs_properties_add_list(props, "video_source", obs_module_text("VideoSource"),
 							   OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);

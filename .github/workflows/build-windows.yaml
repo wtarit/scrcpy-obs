@@ -111,6 +111,19 @@ jobs:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
 
+      - name: Verify FFmpeg Runtime Imports 🔎
+        shell: pwsh
+        env:
+          BUILD_CONFIG: ${{ needs.check-event.outputs.config }}
+        run: |
+          $BuildSpec = Get-Content buildspec.json -Raw | ConvertFrom-Json
+          $PluginDll = Join-Path $PWD "release/$env:BUILD_CONFIG/$($BuildSpec.name)/bin/64bit/$($BuildSpec.name).dll"
+          $RuntimeDir = Join-Path $PWD ".deps/obs-deps-$($BuildSpec.dependencies.prebuilt.version)-x64/bin"
+          python tests/verify_ffmpeg_imports.py --plugin $PluginDll --runtime-dir $RuntimeDir
+          if ($LASTEXITCODE -ne 0) {
+            throw "FFmpeg import verification failed with exit code $LASTEXITCODE"
+          }
+
       - name: Package Plugin 📀
         uses: ./.github/actions/package-plugin
         with:

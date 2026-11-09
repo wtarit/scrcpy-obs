@@ -29,7 +29,7 @@ Target platform: Windows first (user's primary OS). Linux/macOS later.
 
 - Visual Studio 2022 (MSVC v143).
 - CMake ≥ 3.28.
-- OBS Studio 31.1.1 headers (fetched by buildspec.json via obs-deps).
+- OBS Studio 33.0.1 headers and FFmpeg 8 dependencies (fetched by buildspec.json via obs-deps 2026-10-23).
 - Qt 6 (bundled via obs-deps).
 - MSYS2 at `C:\msys64` — packages: `mingw-w64-x86_64-meson mingw-w64-x86_64-ninja mingw-w64-x86_64-sdl3 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libusb mingw-w64-x86_64-gcc` (scrcpy ≥ 4.0 requires SDL3 + FFmpeg ≥ 8.1).
 - `gh` CLI on PATH.
